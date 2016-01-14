@@ -15,7 +15,7 @@ describe("Workplace service", () => {
 
 	describe("Workplace service", () => {
 		it("should get type", (done) => {
-			return service.getType()
+			return service.actionType()
 				.then((res) => {
 					done();
 				})
@@ -24,7 +24,11 @@ describe("Workplace service", () => {
 				});
 		})
 		it("should get wp by id", (done) => {
-			return service.getById()
+			return service.actionById({
+					data: {
+						workplace: "iris://data#pc-1"
+					}
+				})
 				.then((res) => {
 					done();
 				})
@@ -33,7 +37,11 @@ describe("Workplace service", () => {
 				});
 		})
 		it("should get wp by operator", (done) => {
-			return service.getByOperator()
+			return service.actionByOperator({
+					data: {
+						operator: "human-1"
+					}
+				})
 				.then((res) => {
 					done();
 				})
@@ -42,7 +50,7 @@ describe("Workplace service", () => {
 				});
 		})
 		it("should get wp availability", (done) => {
-			return service.getAvailable()
+			return service.actionAvailable()
 				.then((res) => {
 					console.log(res);
 					done();
@@ -52,7 +60,7 @@ describe("Workplace service", () => {
 				});
 		})
 		it("should pass cmd", (done) => {
-			return service.executeCommand()
+			return service.actionExecuteCommand()
 				.then((res) => {
 					done();
 				})
@@ -61,7 +69,13 @@ describe("Workplace service", () => {
 				});
 		})
 		it("should get  wp by query", (done) => {
-			return service.getWorkplace()
+			return service.actionWorkplace({
+					data: {
+						query: {
+							device_of: "iris://data#human-1"
+						}
+					}
+				})
 				.then((res) => {
 					console.log(res);
 					done();
@@ -71,7 +85,12 @@ describe("Workplace service", () => {
 				});
 		})
 		it("should occupy wp", (done) => {
-			return service.occupy()
+			return service.actionOccupy({
+					data: {
+						operator: "iris://data#human-1",
+						workplace: "pc-1"
+					}
+				})
 				.then((res) => {
 					done();
 				})
@@ -80,7 +99,7 @@ describe("Workplace service", () => {
 				});
 		})
 		it("should supervise wp", (done) => {
-			return service.supervise()
+			return service.actionSupervise()
 				.then((res) => {
 					done();
 				})
