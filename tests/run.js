@@ -3,7 +3,7 @@
 let path = require('path');
 let config = require("./config/db_config.json");
 let Couchbird = require('Couchbird')(config.couchbird); //singletone inits here
-let IrisWorkflow = require("resource-managment-framework");
+let IrisWorkflow = require("resource-management-framework");
 
 IrisWorkflow.initializer(config.buckets.main);
 

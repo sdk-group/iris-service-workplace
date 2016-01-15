@@ -1,7 +1,7 @@
 'use strict'
 
 let emitter = require("global-queue");
-let WorkplaceApi = require('resource-managment-framework').WorkplaceApi;
+let WorkplaceApi = require('resource-management-framework').WorkplaceApi;
 
 class Workplace {
 	constructor() {
