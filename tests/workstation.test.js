@@ -1,19 +1,19 @@
 'use strict'
 
-let Workplace = require("./Workplace/workplace");
+let Workstation = require("./Workstation/workstation");
 let config = require("./config/db_config.json");
 
-describe("Workplace service", () => {
+describe("Workstation service", () => {
 	let service = null;
 	let bucket = null;
 	before(() => {
-		service = new Workplace();
+		service = new Workstation();
 		service.init({
 			bucket: config.buckets.main
 		});
 	});
 
-	describe("Workplace service", () => {
+	describe("Workstation service", () => {
 		it("should get type", (done) => {
 			return service.actionType()
 				.then((res) => {
@@ -26,7 +26,7 @@ describe("Workplace service", () => {
 		it("should get wp by id", (done) => {
 			return service.actionById({
 					data: {
-						workplace: "iris://data#pc-1"
+						workstation: "iris://data#pc-1"
 					}
 				})
 				.then((res) => {
@@ -69,7 +69,7 @@ describe("Workplace service", () => {
 				});
 		})
 		it("should get  wp by query", (done) => {
-			return service.actionWorkplace({
+			return service.actionWorkstation({
 					data: {
 						query: {
 							device_of: "iris://data#human-1"
@@ -88,7 +88,7 @@ describe("Workplace service", () => {
 			return service.actionOccupy({
 					data: {
 						operator: "iris://data#human-1",
-						workplace: "pc-1"
+						workstation: "pc-1"
 					}
 				})
 				.then((res) => {

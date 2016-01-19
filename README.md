@@ -1,2 +1,2 @@
-# iris-service-workplace
-IRIS workplace service
+# iris-service-workstation
+IRIS workstation service

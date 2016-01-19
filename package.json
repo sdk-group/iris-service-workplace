@@ -1,7 +1,7 @@
 {
-	"name": "iris-service-workplace",
+	"name": "iris-service-workstation",
 	"version": "1.0.0",
-	"description": "iris workplace service",
+	"description": "iris workstation service",
 	"main": "index.js",
 	"scripts": {
 		"test": "mocha ./build/**/*.test.js -r ./build/index.js",
@@ -9,7 +9,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/sdk-group/iris-service-workplace.git"
+		"url": "git+https://github.com/sdk-group/iris-service-workstation.git"
 	},
 	"keywords": [
 		"iris"
@@ -21,9 +21,9 @@
 	"author": "...",
 	"license": "ISC",
 	"bugs": {
-		"url": "https://github.com/sdk-group/iris-service-workplace/issues"
+		"url": "https://github.com/sdk-group/iris-service-workstation/issues"
 	},
-	"homepage": "https://github.com/sdk-group/iris-service-workplace#readme",
+	"homepage": "https://github.com/sdk-group/iris-service-workstation#readme",
 	"devDependencies": {
 		"babel-preset-node5": "^10.3.0",
 		"chai": "^3.3.0",

@@ -1,15 +1,15 @@
 'use strict'
 
 let emitter = require("global-queue");
-let WorkplaceApi = require('resource-management-framework').WorkplaceApi;
+let WorkstationApi = require('resource-management-framework').WorkstationApi;
 
-class Workplace {
+class Workstation {
 	constructor() {
 		this.emitter = emitter;
 	}
 
 	init() {
-		this.iris = new WorkplaceApi();
+		this.iris = new WorkstationApi();
 		this.iris.initContent();
 	}
 
@@ -18,11 +18,11 @@ class Workplace {
 
 	actionById({
 		data: {
-			workplace
+			workstation
 		}
 	}) {
-		return this.iris.getWorkplace({
-			keys: [workplace]
+		return this.iris.getWorkstation({
+			keys: [workstation]
 		});
 	}
 
@@ -31,7 +31,7 @@ class Workplace {
 			operator
 		}
 	}) {
-		return this.iris.getWorkplace({
+		return this.iris.getWorkstation({
 			query: {
 				occupied_by: operator
 			}
@@ -41,23 +41,23 @@ class Workplace {
 	actionAvailable() {}
 	actionExecuteCommand() {}
 
-	actionWorkplace({
+	actionWorkstation({
 		data: {
 			query
 		}
 	}) {
-		return this.iris.getWorkplace({
+		return this.iris.getWorkstation({
 			query
 		});
 	}
 	actionOccupy({
 		data: {
-			workplace,
+			workstation,
 			operator
 		}
 	}) {
-		return this.iris.setWorkplaceField({
-			keys: workplace
+		return this.iris.setWorkstationField({
+			keys: workstation
 		}, {
 			occupied_by: operator
 		});
@@ -65,4 +65,4 @@ class Workplace {
 	actionSupervise() {}
 }
 
-module.exports = Workplace;
+module.exports = Workstation;

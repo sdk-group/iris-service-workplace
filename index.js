@@ -1,1 +1,1 @@
-module.exports = require("./build/Workplace");
+module.exports = require("./build/Workstation");
