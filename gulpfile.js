@@ -16,9 +16,7 @@ gulp.task("default", ['es6']);
 gulp.task("sourcemaps", function() {
 	return gulp.src("src/**/*.js")
 		.pipe(sourcemaps.init())
-		.pipe(babel({
-			blacklist: ['bluebirdCoroutines', 'regenerator']
-		}))
+		.pipe(babel())
 		.pipe(sourcemaps.write("./maps"))
 		.pipe(gulp.dest("build"));
 });
@@ -31,14 +29,7 @@ gulp.task("es6-js", function() {
 				console.log('error', e);
 			}
 		}))
-		.pipe(babel({
-			"whitelist": [
-				"strict",
-				"es6.modules",
-				"es6.parameters",
-				"es6.destructuring"
-			]
-		}))
+		.pipe(babel())
 		.pipe(gulp.dest("build"))
 		.on('end', function() {
 			console.log('end build');
