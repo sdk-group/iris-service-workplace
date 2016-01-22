@@ -15,8 +15,11 @@ describe("Workstation service", () => {
 
 	describe("Workstation service", () => {
 		it("should get type", (done) => {
-			return service.actionType()
+			return service.actionType({
+					workstation: "iris://data#pc-1"
+				})
 				.then((res) => {
+					expect(res).to.have.property("iris://data#pc-1", 'control-panel');
 					done();
 				})
 				.catch((err) => {
@@ -25,9 +28,7 @@ describe("Workstation service", () => {
 		})
 		it("should get wp by id", (done) => {
 			return service.actionById({
-					data: {
-						workstation: "iris://data#pc-1"
-					}
+					workstation: "iris://data#pc-1"
 				})
 				.then((res) => {
 					done();
@@ -38,9 +39,7 @@ describe("Workstation service", () => {
 		})
 		it("should get wp by operator", (done) => {
 			return service.actionByOperator({
-					data: {
-						operator: "human-1"
-					}
+					operator: "human-1"
 				})
 				.then((res) => {
 					done();
@@ -70,10 +69,8 @@ describe("Workstation service", () => {
 		})
 		it("should get  wp by query", (done) => {
 			return service.actionWorkstation({
-					data: {
-						query: {
-							device_of: "iris://data#human-1"
-						}
+					query: {
+						default_agent: "iris://data#human-1"
 					}
 				})
 				.then((res) => {
@@ -86,10 +83,8 @@ describe("Workstation service", () => {
 		})
 		it("should occupy wp", (done) => {
 			return service.actionOccupy({
-					data: {
-						operator: "iris://data#human-1",
-						workstation: "pc-1"
-					}
+					operator: "iris://data#human-1",
+					workstation: "pc-1"
 				})
 				.then((res) => {
 					done();

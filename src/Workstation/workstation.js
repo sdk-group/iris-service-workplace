@@ -14,12 +14,19 @@ class Workstation {
 	}
 
 	//API
-	actionType() {}
+	actionType({
+		workstation
+	}) {
+		return this.iris.getWorkstation({
+				keys: [workstation]
+			})
+			.then((res) => {
+				return _.mapValues(res, val => val.device_type);
+			});
+	}
 
 	actionById({
-		data: {
-			workstation
-		}
+		workstation
 	}) {
 		return this.iris.getWorkstation({
 			keys: [workstation]
@@ -27,9 +34,7 @@ class Workstation {
 	}
 
 	actionByOperator({
-		data: {
-			operator
-		}
+		operator
 	}) {
 		return this.iris.getWorkstation({
 			query: {
@@ -38,31 +43,43 @@ class Workstation {
 		});
 	}
 
-	actionAvailable() {}
-	actionExecuteCommand() {}
+	actionAvailable() {
+		return Promise.resolve(true);
+	}
+	actionExecuteCommand() {
+		return Promise.resolve(true);
+	}
 
 	actionWorkstation({
-		data: {
-			query
-		}
+		query
 	}) {
+		console.log("WS ACTS");
 		return this.iris.getWorkstation({
 			query
 		});
 	}
+
 	actionOccupy({
-		data: {
-			workstation,
-			operator
-		}
+		workstation,
+		operator
 	}) {
 		return this.iris.setWorkstationField({
-			keys: workstation
-		}, {
-			occupied_by: operator
-		});
+				keys: workstation
+			}, {
+				occupied_by: operator
+			}, true)
+			.then((res) => {
+				console.log("OCCUPIED", res);
+				return this.emitter.addTask('agent', {
+					_action: 'login',
+					user_id: operator
+				});
+			});
 	}
-	actionSupervise() {}
+
+	actionSupervise() {
+		return Promise.resolve(true);
+	}
 }
 
 module.exports = Workstation;
