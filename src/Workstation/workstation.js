@@ -38,14 +38,11 @@ class Workstation {
 	}) {
 		return this.iris.getAllEntries({
 			query: {
-				occupied_by: operator
+				occupied_by: user_id
 			}
 		});
 	}
 
-	actionAvailable() {
-		return Promise.resolve(true);
-	}
 	actionExecuteCommand() {
 		return Promise.resolve(true);
 	}
@@ -60,19 +57,52 @@ class Workstation {
 
 	actionOccupy({
 		workstation,
-		operator
+		user_id
 	}) {
-		return this.iris.setWorkstationField({
+		let ws;
+		return this.iris.getWorkstation({
 				keys: workstation
-			}, {
-				occupied_by: operator
-			}, true)
+			})
 			.then((res) => {
-				console.log("OCCUPIED", res);
+				ws = res[workstation];
+				if(!ws)
+					return Promise.reject(new Error("No such workstations."));
+				let occupation = _.isArray(ws.occupied_by) ? ws.occupied_by : [ws.occupied_by];
+				ws.occupied_by = _.uniq(_.concat(occupation, user_id));
+				return this.iris.setWorkstation(ws);
+			})
+			.then((res) => {
 				return this.emitter.addTask('agent', {
 					_action: 'login',
-					user_id: operator
+					user_id
 				});
+			})
+			.then((res) => {
+				if(!res[user_id])
+					return Promise.reject("Failed to login user.");
+				return {
+					workstation: ws
+				};
+			});
+	}
+
+	actionLeave({
+		user_id,
+		workstation
+	}) {
+		return this.iris.getEntry(false, {
+				keys: workstation
+			})
+			.then((res) => {
+				let to_put = _.map(res, (ws, key) => {
+					let occupation = _.isArray(ws.occupied_by) ? ws.occupied_by : [ws.occupied_by];
+					ws.occupied_by = _.uniq(_.filter(occupation, (user) => (user !== user_id)));
+					return ws;
+				});
+				return this.iris.setWorkstation(to_put);
+			})
+			.then((res) => {
+				return _.mapValues(res, (ws) => !!ws.cas);
 			});
 	}
 
