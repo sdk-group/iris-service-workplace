@@ -90,6 +90,7 @@ class Workstation {
 		user_id,
 		workstation
 	}) {
+		let fin;
 		return this.iris.getEntry(false, {
 				keys: workstation
 			})
@@ -102,8 +103,21 @@ class Workstation {
 				return this.iris.setWorkstation(to_put);
 			})
 			.then((res) => {
-				return _.mapValues(res, (ws) => !!ws.cas);
-			});
+				fin = _.mapValues(res, (ws) => !!ws.cas);
+				return this.actionByAgent({
+					user_id
+				});
+			})
+			.then((res) => {
+				if(_.every(res, _.isEmpty))
+					return this.emitter.addTask('agent', {
+						_action: 'logout',
+						user_id
+					});
+				else
+					return Promise.resolve(true);
+			})
+			.then((res) => fin);
 	}
 
 	actionSupervise() {
