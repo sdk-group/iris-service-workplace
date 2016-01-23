@@ -43,6 +43,15 @@ gulp.task("json", function() {
 
 gulp.task('es6', ['es6-js', 'json']);
 
+gulp.task('upd', ['es6'], function() {
+	return gulp.src(["build/**/*.js"])
+		.pipe(gulp.dest("../iris-v2/node_modules/iris-service-workstation/build"));
+});
+
+gulp.task('test-upd', ['start-test'], function() {
+	gulp.watch(["src/**/*.js", "tests/**/*.js"], ['upd']);
+});
+
 gulp.task('test', ['start-test'], function() {
 	gulp.watch(["src/**/*.js", "tests/**/*.js"], ['es6']);
 });

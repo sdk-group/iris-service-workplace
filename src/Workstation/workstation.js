@@ -33,10 +33,10 @@ class Workstation {
 		});
 	}
 
-	actionByOperator({
-		operator
+	actionByAgent({
+		user_id
 	}) {
-		return this.iris.getWorkstation({
+		return this.iris.getAllEntries({
 			query: {
 				occupied_by: operator
 			}
@@ -53,8 +53,7 @@ class Workstation {
 	actionWorkstation({
 		query
 	}) {
-		console.log("WS ACTS");
-		return this.iris.getWorkstation({
+		return this.iris.getAllEntries({
 			query
 		});
 	}
