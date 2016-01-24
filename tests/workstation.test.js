@@ -8,9 +8,7 @@ describe("Workstation service", () => {
 	let bucket = null;
 	before(() => {
 		service = new Workstation();
-		service.init({
-			bucket: config.buckets.main
-		});
+		service.init();
 	});
 
 	describe("Workstation service", () => {
