@@ -81,7 +81,7 @@ describe("Workstation service", () => {
 		})
 		it("should occupy wp", (done) => {
 			return service.actionOccupy({
-					operator: "iris://data#human-1",
+					user_id: "iris://data#human-1",
 					workstation: "pc-1"
 				})
 				.then((res) => {

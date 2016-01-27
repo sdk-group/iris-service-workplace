@@ -28,9 +28,18 @@ class Workstation {
 	actionById({
 		workstation
 	}) {
+		console.log("WS GET", workstation);
 		return this.iris.getWorkstation({
-			keys: [workstation]
-		});
+				keys: workstation
+			})
+			.catch(err => {
+				console.log("ERR WS", err.message);
+				return {};
+			})
+			.then((res) => {
+				console.log("WS", res);
+				return res;
+			});
 	}
 
 	actionByAgent({
@@ -60,16 +69,16 @@ class Workstation {
 		user_id
 	}) {
 		let ws;
-		return this.iris.getWorkstation({
+		return this.iris.getEntry(false, {
 				keys: workstation
 			})
 			.then((res) => {
-				ws = res[workstation];
+				ws = _.sample(res);
 				if(!ws)
 					return Promise.reject(new Error("No such workstations."));
 				let occupation = _.isArray(ws.occupied_by) ? ws.occupied_by : [ws.occupied_by];
 				ws.occupied_by = _.uniq(_.concat(occupation, user_id));
-				return this.iris.setWorkstation(ws);
+				return this.iris.setEntry(ws.class, ws);
 			})
 			.then((res) => {
 				return this.emitter.addTask('agent', {
