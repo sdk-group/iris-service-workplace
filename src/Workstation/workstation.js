@@ -78,7 +78,7 @@ class Workstation {
 					return Promise.reject(new Error("No such workstations."));
 				let occupation = _.isArray(ws.occupied_by) ? ws.occupied_by : [ws.occupied_by];
 				ws.occupied_by = _.uniq(_.concat(occupation, user_id));
-				return this.iris.setEntry(ws.class, ws);
+				return this.iris.setEntry(ws.ldtype, ws);
 			})
 			.then((res) => {
 				return this.emitter.addTask('agent', {
@@ -109,7 +109,7 @@ class Workstation {
 					ws.occupied_by = _.uniq(_.filter(occupation, (user) => (user !== user_id)));
 					return ws;
 				});
-				return this.iris.setWorkstation(to_put);
+				return this.iris.setEntry(ws.ldtype, to_put);
 			})
 			.then((res) => {
 				fin = _.mapValues(res, (ws) => !!ws.cas);
