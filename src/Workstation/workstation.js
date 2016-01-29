@@ -28,17 +28,11 @@ class Workstation {
 	actionById({
 		workstation
 	}) {
-		console.log("WS GET", workstation);
 		return this.iris.getWorkstation({
 				keys: workstation
 			})
 			.catch(err => {
-				console.log("ERR WS", err.message);
 				return {};
-			})
-			.then((res) => {
-				console.log("WS", res);
-				return res;
 			});
 	}
 
@@ -104,27 +98,41 @@ class Workstation {
 				keys: workstation
 			})
 			.then((res) => {
+				console.log("FOUND WS", _.groupBy(res, 'ldtype'));
 				let to_put = _.map(res, (ws, key) => {
 					let occupation = _.isArray(ws.occupied_by) ? ws.occupied_by : [ws.occupied_by];
 					ws.occupied_by = _.uniq(_.filter(occupation, (user) => (user !== user_id)));
 					return ws;
 				});
-				return this.iris.setEntry(ws.ldtype, to_put);
+				let p = _.map(_.groupBy(to_put, 'ldtype'), (ws, type) => {
+					return this.iris.setEntry(type, ws);
+				});
+
+				return Promise.all(p);
 			})
 			.then((res) => {
-				fin = _.mapValues(res, (ws) => !!ws.cas);
+				console.log("RS", res);
+				fin = _.reduce(res, (acc, ws) => {
+					_.map(ws, (val, key) => {
+						acc[key] = !!val.cas;
+					});
+					return acc;
+				}, {});
 				return this.actionByAgent({
 					user_id
 				});
 			})
 			.then((res) => {
-				if(_.every(res, _.isEmpty))
+				let ws = _.filter(res, !_.isEmpty);
+				console.log("WS BY AGENT", res, fin, ws);
+				if(_.every(res, _.isEmpty)) {
 					return this.emitter.addTask('agent', {
 						_action: 'logout',
 						user_id
 					});
-				else
+				} else {
 					return Promise.resolve(true);
+				}
 			})
 			.then((res) => fin);
 	}
