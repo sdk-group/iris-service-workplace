@@ -135,8 +135,10 @@ class Workstation {
 				}
 			})
 			.then((res) => {
-				success: true,
-				result: fin
+				return {
+					success: true,
+					result: fin
+				}
 			});
 	}
 
