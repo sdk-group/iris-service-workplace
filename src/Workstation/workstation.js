@@ -125,7 +125,11 @@ class Workstation {
 			.then((res) => {
 				let ws = _.filter(res, !_.isEmpty);
 				console.log("WS BY AGENT", res, fin, ws);
-				if(_.every(_.filter(res, (ws) => (!_.isUndefined(ws.occupied_by))), _.isEmpty)) {
+				let filtered = _.filter(res, (ws) => {
+					let occupation = _.isArray(ws.occupied_by) ? ws.occupied_by : [ws.occupied_by];
+					return !!~_.indexOf(occupation, user_id);
+				});
+				if(_.every(filtered, _.isEmpty)) {
 					return this.emitter.addTask('agent', {
 						_action: 'logout',
 						user_id
@@ -135,6 +139,7 @@ class Workstation {
 				}
 			})
 			.then((res) => {
+				console.log("LOGOUT", user_id);
 				return {
 					success: true,
 					result: fin
