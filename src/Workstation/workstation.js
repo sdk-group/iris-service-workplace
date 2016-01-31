@@ -28,7 +28,7 @@ class Workstation {
 	actionById({
 		workstation
 	}) {
-		return this.iris.getWorkstation({
+		return this.iris.getEntry(false, {
 				keys: workstation
 			})
 			.catch(err => {
