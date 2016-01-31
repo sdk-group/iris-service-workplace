@@ -125,7 +125,7 @@ class Workstation {
 			.then((res) => {
 				let ws = _.filter(res, !_.isEmpty);
 				console.log("WS BY AGENT", res, fin, ws);
-				if(_.every(res, _.isEmpty)) {
+				if(_.every(_.filter(res, (ws) => (!_.isUndefined(ws.occupied_by))), _.isEmpty)) {
 					return this.emitter.addTask('agent', {
 						_action: 'logout',
 						user_id
@@ -134,7 +134,10 @@ class Workstation {
 					return Promise.resolve(true);
 				}
 			})
-			.then((res) => fin);
+			.then((res) => {
+				success: true,
+				result: fin
+			});
 	}
 
 	actionSupervise() {
