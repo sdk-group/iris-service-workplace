@@ -98,7 +98,6 @@ class Workstation {
 				keys: workstation
 			})
 			.then((res) => {
-				console.log("FOUND WS", _.groupBy(res, 'ldtype'));
 				let to_put = _.map(res, (ws, key) => {
 					let occupation = _.isArray(ws.occupied_by) ? ws.occupied_by : [ws.occupied_by];
 					ws.occupied_by = _.uniq(_.filter(occupation, (user) => (user !== user_id)));
@@ -111,7 +110,6 @@ class Workstation {
 				return Promise.all(p);
 			})
 			.then((res) => {
-				console.log("RS", res);
 				fin = _.reduce(res, (acc, ws) => {
 					_.map(ws, (val, key) => {
 						acc[key] = !!val.cas;
@@ -123,20 +121,16 @@ class Workstation {
 				});
 			})
 			.then((res) => {
-				let ws = _.filter(res, !_.isEmpty);
-				console.log("WS BY AGENT", res, fin, ws);
-				let filtered = _.filter(res, (ws) => {
+				let flattened = _.flatMap(res, (v) => _.values(v));
+				let filtered = _.filter(flattened, (ws) => {
 					let occupation = _.isArray(ws.occupied_by) ? ws.occupied_by : [ws.occupied_by];
 					return !!~_.indexOf(occupation, user_id);
 				});
-				if(_.every(filtered, _.isEmpty)) {
-					return this.emitter.addTask('agent', {
-						_action: 'logout',
-						user_id
-					});
-				} else {
-					return Promise.resolve(true);
-				}
+				console.log("WS BY AGENT", fin, flattened, filtered);
+				return !_.isEmpty(filtered) ? Promise.resolve(true) : this.emitter.addTask('agent', {
+					_action: 'logout',
+					user_id
+				});
 			})
 			.then((res) => {
 				console.log("LOGOUT", user_id);
@@ -144,6 +138,11 @@ class Workstation {
 					success: true,
 					result: fin
 				}
+			})
+			.catch(err => {
+				return {
+					success: false
+				};
 			});
 	}
 
