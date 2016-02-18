@@ -71,7 +71,7 @@ class Workstation {
 				if(!ws)
 					return Promise.reject(new Error("No such workstations."));
 				let occupation = ws.occupied_by || [];
-				occupation = _.isArray(occupation) ? occupation : [occupation];
+				occupation = _.castArray(occupation);
 				ws.occupied_by = _.uniq(_.concat(occupation, user_id));
 				return this.iris.setEntry(ws.type, ws);
 			})
@@ -100,7 +100,7 @@ class Workstation {
 			})
 			.then((res) => {
 				let to_put = _.map(res, (ws, key) => {
-					let occupation = _.isArray(ws.occupied_by) ? ws.occupied_by : [ws.occupied_by];
+					let occupation = _.castArray(ws.occupied_by);
 					ws.occupied_by = _.uniq(_.filter(occupation, (user) => (user !== user_id)));
 					return ws;
 				});
@@ -124,7 +124,7 @@ class Workstation {
 			.then((res) => {
 				let flattened = _.flatMap(res, (v) => _.values(v));
 				let filtered = _.filter(flattened, (ws) => {
-					let occupation = _.isArray(ws.occupied_by) ? ws.occupied_by : [ws.occupied_by];
+					let occupation = _.castArray(ws.occupied_by);
 					return !!~_.indexOf(occupation, user_id);
 				});
 				console.log("WS BY AGENT", fin, flattened, filtered);
