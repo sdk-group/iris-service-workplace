@@ -1,7 +1,8 @@
 'use strict'
 
 let emitter = require("global-queue");
-let WorkstationApi = require('resource-management-framework').WorkstationApi;
+let WorkstationApi = require('resource-management-framework')
+	.WorkstationApi;
 
 class Workstation {
 	constructor() {
@@ -32,6 +33,7 @@ class Workstation {
 				keys: workstation
 			})
 			.catch(err => {
+				console.log("WS ERR", err.stack);
 				return {};
 			});
 	}
@@ -68,7 +70,7 @@ class Workstation {
 			})
 			.then((res) => {
 				ws = _.sample(res);
-				if(!ws)
+				if (!ws)
 					return Promise.reject(new Error("No such workstations."));
 				let occupation = ws.occupied_by || [];
 				occupation = _.castArray(occupation);
@@ -82,7 +84,7 @@ class Workstation {
 				});
 			})
 			.then((res) => {
-				if(!res[user_id])
+				if (!res[user_id])
 					return Promise.reject("Failed to login user.");
 				return {
 					workstation: ws
