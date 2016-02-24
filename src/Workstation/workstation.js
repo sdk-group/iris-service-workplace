@@ -129,7 +129,7 @@ class Workstation {
 					let occupation = _.castArray(ws.occupied_by);
 					return !!~_.indexOf(occupation, user_id);
 				});
-				console.log("WS BY AGENT", fin, flattened, filtered);
+				// console.log("WS BY AGENT", fin, flattened, filtered);
 				return !_.isEmpty(filtered) ? Promise.resolve(true) : this.emitter.addTask('agent', {
 					_action: 'logout',
 					user_id
