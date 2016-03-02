@@ -32,7 +32,7 @@ gulp.task("es6-js", function () {
 			console.log('end build');
 			if (production) {
 				console.log("Deleting sources...");
-				return del(["src", "gulpfile.js"]);
+				return del(["src", "gulpfile.js", "tests"]);
 			}
 		});
 });
