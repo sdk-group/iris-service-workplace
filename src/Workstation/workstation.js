@@ -29,9 +29,8 @@ class Workstation {
 	actionById({
 		workstation
 	}) {
-		return this.iris.getEntry(false, {
-				keys: workstation
-			})
+		console.log("WS BY ID", workstation);
+		return this.iris.getEntryTypeless(workstation)
 			.catch(err => {
 				console.log("WS ERR", err.stack);
 				return {};
@@ -48,8 +47,36 @@ class Workstation {
 		});
 	}
 
-	actionExecuteCommand() {
-		return Promise.resolve(true);
+	actionWorkstationOrganizationData({
+		workstation,
+		embed_schedules = false
+	}) {
+		let ws;
+		return this.iris.getEntryTypeless(workstation)
+			.then((res) => {
+				ws = res[workstation];
+				if (embed_schedules) {
+					return this.iris.getWorkstationOrganizationSchedulesChain(ws.attached_to);
+				} else {
+					return this.iris.getWorkstationOrganizationChain(ws.attached_to);
+				}
+			})
+			.then((office) => {
+				let org_chain = office;
+				let org_addr = [];
+				let org_merged = _.reduce(_.orderBy(_.keys(org_chain), _.parseInt, 'desc'), (acc, val) => {
+					acc = _.merge(acc, org_chain[val]);
+					org_addr.push(org_chain[val].id);
+					return acc;
+				}, {});
+				org_addr = _.join(org_addr, ".");
+				return {
+					ws,
+					org_addr,
+					org_chain,
+					org_merged
+				}
+			});
 	}
 
 	actionWorkstation({
