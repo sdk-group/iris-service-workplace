@@ -29,7 +29,6 @@ class Workstation {
 	actionById({
 		workstation
 	}) {
-		console.log("WS BY ID", workstation);
 		return this.iris.getEntryTypeless(workstation)
 			.catch(err => {
 				console.log("WS ERR", err.stack);
@@ -92,11 +91,9 @@ class Workstation {
 		user_id
 	}) {
 		let ws;
-		return this.iris.getEntry(false, {
-				keys: workstation
-			})
+		return this.iris.getEntryTypeless(workstation)
 			.then((res) => {
-				ws = _.sample(res);
+				ws = res[workstation];
 				if (!ws)
 					return Promise.reject(new Error("No such workstations."));
 				let occupation = ws.occupied_by || [];
@@ -111,8 +108,8 @@ class Workstation {
 				});
 			})
 			.then((res) => {
-				if (!res[user_id])
-					return Promise.reject("Failed to login user.");
+				if (!res.success)
+					return Promise.reject(new Error("Failed to login user."));
 				return {
 					workstation: ws
 				};
@@ -124,9 +121,7 @@ class Workstation {
 		workstation
 	}) {
 		let fin;
-		return this.iris.getEntry(false, {
-				keys: workstation
-			})
+		return this.iris.getEntryTypeless(workstation)
 			.then((res) => {
 				let to_put = _.map(res, (ws, key) => {
 					let occupation = _.castArray(ws.occupied_by);
