@@ -51,30 +51,41 @@ class Workstation {
 		embed_schedules = false
 	}) {
 		let ws;
-		return this.iris.getEntryTypeless(workstation)
+		return this.iris.getEntryTypeless(_.castArray(workstation))
 			.then((res) => {
-				ws = res[workstation];
+				ws = _.values(res);
 				if (embed_schedules) {
-					return this.iris.getWorkstationOrganizationSchedulesChain(ws.attached_to);
+					return this.iris.getWorkstationOrganizationSchedulesChain(_.map(ws, 'attached_to'));
 				} else {
-					return this.iris.getWorkstationOrganizationChain(ws.attached_to);
+					return this.iris.getWorkstationOrganizationChain(_.map(ws, 'attached_to'));
 				}
 			})
-			.then((office) => {
-				let org_chain = office;
-				let org_addr = [];
-				let org_merged = _.reduce(_.orderBy(_.keys(org_chain), _.parseInt, 'desc'), (acc, val) => {
-					acc = _.merge(acc, org_chain[val]);
-					org_addr.push(org_chain[val].id);
+			.then((offices) => {
+				// console.log("WS OFFC", require('util')
+				// 	.inspect(offices, {
+				// 		depth: null
+				// 	}));
+				return _.reduce(ws, (acc, ws_data) => {
+					let org_chain = offices[ws_data.attached_to];
+					let org_addr = [];
+					let org_merged = _.reduce(_.orderBy(_.keys(org_chain), _.parseInt, 'desc'), (acc, val) => {
+						acc = _.merge(acc, org_chain[val]);
+						org_addr.push(org_chain[val].id);
+						return acc;
+					}, {});
+					org_addr = _.join(org_addr, ".");
+					acc[ws_data.id] = {
+						ws: ws_data,
+						org_addr,
+						org_chain,
+						org_merged
+					};
 					return acc;
 				}, {});
-				org_addr = _.join(org_addr, ".");
-				return {
-					ws,
-					org_addr,
-					org_chain,
-					org_merged
-				}
+				// console.log("WS RESULT", require('util')
+				// 	.inspect(result, {
+				// 		depth: null
+				// 	}));
 			});
 	}
 
