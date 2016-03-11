@@ -89,6 +89,28 @@ class Workstation {
 			});
 	}
 
+	actionOrganizationData({
+		organization
+	}) {
+		return this.iris.getWorkstationOrganizationChain(organization)
+			.then(res => {
+				return _.mapValues(res, (org_chain) => {
+					let org_addr = [];
+					let org_merged = _.reduce(_.orderBy(_.keys(org_chain), _.parseInt, 'desc'), (acc, val) => {
+						acc = _.merge(acc, org_chain[val]);
+						org_addr.push(org_chain[val].id);
+						return acc;
+					}, {});
+					org_addr = _.join(org_addr, ".");
+					return {
+						org_addr,
+						org_chain,
+						org_merged
+					};
+				});
+			});
+	}
+
 	actionWorkstation({
 		query
 	}) {
