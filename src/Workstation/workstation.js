@@ -13,8 +13,25 @@ class Workstation {
 		this.iris = new WorkstationApi();
 		this.iris.initContent();
 	}
+	launch() {
+			this.emitter.emit('taskrunner.add.task', {
+				time: 0,
+				task_name: "",
+				module_name: "workstation",
+				task_id: "cache-workstations",
+				task_type: "add-task",
+				params: {
+					_action: "cache-workstations"
+				}
+			});
+			return Promise.resolve(true);
+		}
+		//API
+	actionCacheWorkstations() {
+		return this.iris.cacheWorkstations();
+	}
 
-	//API
+
 	actionType({
 		workstation
 	}) {
@@ -121,7 +138,8 @@ class Workstation {
 
 	actionOccupy({
 		workstation,
-		user_id
+		user_id,
+		user_type
 	}) {
 		let ws;
 		return this.iris.getEntryTypeless(workstation)
@@ -138,6 +156,7 @@ class Workstation {
 				return this.emitter.addTask('agent', {
 					_action: 'login',
 					user_id,
+					user_type,
 					workstation
 				});
 			})
