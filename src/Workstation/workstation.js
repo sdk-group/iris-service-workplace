@@ -137,7 +137,8 @@ class Workstation {
 			.then((res) => {
 				return this.emitter.addTask('agent', {
 					_action: 'login',
-					user_id
+					user_id,
+					workstation
 				});
 			})
 			.then((res) => {
