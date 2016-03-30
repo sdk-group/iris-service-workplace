@@ -136,6 +136,19 @@ class Workstation {
 		});
 	}
 
+	actionGetWorkstationsCache({
+		device_type
+	}) {
+		return this.iris.getWorkstationsCache()
+			.then((res) => {
+				return device_type ? _.pick(res, device_type) : res;
+			})
+			.catch((err) => {
+				console.log("GET WS CACHE ERR", err.stack);
+				return [];
+			});
+	}
+
 	actionOccupy({
 		workstation,
 		user_id,
@@ -153,6 +166,16 @@ class Workstation {
 				return this.iris.setEntry(ws.type, ws);
 			})
 			.then((res) => {
+				this.emitter.emit('taskrunner.add.task', {
+					time: 0,
+					task_name: "",
+					module_name: "workstation",
+					task_id: "cache-workstations",
+					task_type: "add-task",
+					params: {
+						_action: "cache-workstations"
+					}
+				});
 				return this.emitter.addTask('agent', {
 					_action: 'login',
 					user_id,
@@ -199,6 +222,16 @@ class Workstation {
 				});
 			})
 			.then((res) => {
+				this.emitter.emit('taskrunner.add.task', {
+					time: 0,
+					task_name: "",
+					module_name: "workstation",
+					task_id: "cache-workstations",
+					task_type: "add-task",
+					params: {
+						_action: "cache-workstations"
+					}
+				});
 				let flattened = _.flatMap(res, (v) => _.values(v));
 				let filtered = _.filter(flattened, (ws) => {
 					let occupation = _.castArray(ws.occupied_by);
