@@ -137,9 +137,10 @@ class Workstation {
 	}
 
 	actionGetWorkstationsCache({
-		device_type
+		device_type,
+		organization
 	}) {
-		return this.iris.getWorkstationsCache()
+		return this.iris.getWorkstationsCache(organization)
 			.then((res) => {
 				return device_type ? _.pick(res, device_type) : res;
 			})
