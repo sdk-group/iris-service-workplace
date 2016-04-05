@@ -129,10 +129,33 @@ class Workstation {
 	}
 
 	actionWorkstation({
-		query
+		workstation,
+		parent,
+		satellite_type
 	}) {
-		return this.iris.getAllEntries({
-			query
+		return ((parent && satellite_type) ?
+				this.actionSatellite({
+					parent,
+					satellite_type
+				}) : this.iris.getEntryTypeless(workstation))
+			.then((res) => {
+				return res;
+			})
+			.catch((err) => {
+				console.log("WS ERR!", err.stack);
+				return {};
+			});
+	}
+
+	actionSatellite({
+		parent,
+		satellite_type
+	}) {
+		let type = _.upperFirst(_.camelCase(satellite_type));
+		return this.iris.getEntry(type, {
+			query: {
+				parent
+			}
 		});
 	}
 
@@ -156,6 +179,7 @@ class Workstation {
 		user_type
 	}) {
 		let ws;
+		console.log("WS OCC", workstation, user_id, user_type);
 		return this.iris.getEntryTypeless(workstation)
 			.then((res) => {
 				ws = res[workstation];
