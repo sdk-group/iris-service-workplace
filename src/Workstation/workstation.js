@@ -78,7 +78,7 @@ class Workstation {
 				}
 			})
 			.then((offices) => {
-				// console.log("WS OFFC", require('util')
+				// console.log("WS OFFC", workstation, require('util')
 				// 	.inspect(offices, {
 				// 		depth: null
 				// 	}));
@@ -179,7 +179,7 @@ class Workstation {
 		user_type
 	}) {
 		let ws;
-		console.log("WS OCC", workstation, user_id, user_type);
+		// console.log("WS OCC", workstation, user_id, user_type);
 		return this.iris.getEntryTypeless(workstation)
 			.then((res) => {
 				ws = res[workstation];
