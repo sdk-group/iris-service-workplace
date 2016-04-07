@@ -54,13 +54,24 @@ class Workstation {
 	}
 
 	actionByAgent({
-		user_id
+		user_id,
+		organization
 	}) {
-		return this.iris.getAllEntries({
-			query: {
-				occupied_by: user_id
-			}
-		});
+		return Promise.map(organization, (org) => this.actionGetWorkstationsCache({
+				organization: org
+			}))
+			.then((res) => {
+				let data = _.reduce(res, (acc, org_data) => {
+					_.mergeWith(acc, org_data, (objValue, srcValue) => {
+						return _.concat(objValue || [], srcValue || []);
+					});
+					return acc;
+				}, {});
+				return _.reduce(data, (acc, val, key) => {
+					acc[_.upperFirst(_.camelCase(key))] = _.filter(val, (v) => !_.isEmpty(_.intersection(_.castArray(v.occupied_by), _.castArray(user_id))));
+					return acc;
+				}, {});
+			});
 	}
 
 	actionWorkstationOrganizationData({
@@ -222,8 +233,10 @@ class Workstation {
 		workstation
 	}) {
 		let fin;
+		let ws;
 		return this.iris.getEntryTypeless(workstation)
 			.then((res) => {
+				ws = res;
 				let to_put = _.map(res, (ws, key) => {
 					let occupation = _.castArray(ws.occupied_by);
 					ws.occupied_by = _.uniq(_.filter(occupation, (user) => (user !== user_id)));
@@ -243,7 +256,12 @@ class Workstation {
 					return acc;
 				}, {});
 				return this.actionByAgent({
-					user_id
+					user_id,
+					organization: _(ws)
+						.map('attached_to')
+						.uniq()
+						.compact()
+						.value()
 				});
 			})
 			.then((res) => {
@@ -276,6 +294,7 @@ class Workstation {
 				}
 			})
 			.catch(err => {
+				console.log("ERR", err.stack);
 				return {
 					success: false
 				};
