@@ -1,12 +1,12 @@
 'use strict'
 
-let emitter = require("global-queue");
+
 let WorkstationApi = require('resource-management-framework')
 	.WorkstationApi;
 
 class Workstation {
 	constructor() {
-		this.emitter = emitter;
+		this.emitter = message_bus;
 	}
 
 	init() {
@@ -115,6 +115,10 @@ class Workstation {
 				// 		depth: null
 				// 	}));
 			});
+	}
+
+	actionOrganizationTimezones() {
+		return this.iris.getOrganizationTimezones();
 	}
 
 	actionOrganizationData({
