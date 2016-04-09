@@ -21,14 +21,18 @@ class Workstation {
 				task_id: "cache-workstations",
 				task_type: "add-task",
 				params: {
-					_action: "cache-workstations"
+					_action: "cache-workstations",
+					initial: true
 				}
 			});
 			return Promise.resolve(true);
 		}
 		//API
-	actionCacheWorkstations() {
-		return this.iris.cacheWorkstations();
+	actionCacheWorkstations({
+		initial = false,
+		organization
+	}) {
+		return initial ? this.iris.cacheWorkstations() : this.iris.updateWorkstationsCache(organization);
 	}
 
 
@@ -213,7 +217,8 @@ class Workstation {
 					task_id: "cache-workstations",
 					task_type: "add-task",
 					params: {
-						_action: "cache-workstations"
+						_action: "cache-workstations",
+						organization: ws.attached_to
 					}
 				});
 				return this.emitter.addTask('agent', {
@@ -276,7 +281,8 @@ class Workstation {
 					task_id: "cache-workstations",
 					task_type: "add-task",
 					params: {
-						_action: "cache-workstations"
+						_action: "cache-workstations",
+						organization: ws.attached_to
 					}
 				});
 				let flattened = _.flatMap(res, (v) => _.values(v));
