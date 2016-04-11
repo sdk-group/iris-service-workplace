@@ -30,7 +30,7 @@ class Workstation {
 		//API
 	actionCacheWorkstations({
 		initial = false,
-		organization
+			organization
 	}) {
 		return initial ? this.iris.cacheWorkstations() : this.iris.updateWorkstationsCache(organization);
 	}
@@ -50,11 +50,7 @@ class Workstation {
 	actionById({
 		workstation
 	}) {
-		return this.iris.getEntryTypeless(workstation)
-			.catch(err => {
-				console.log("WS ERR", err.stack);
-				return {};
-			});
+		return this.iris.getEntryTypeless(workstation);
 	}
 
 	actionByAgent({
@@ -185,10 +181,17 @@ class Workstation {
 		return this.iris.getWorkstationsCache(organization)
 			.then((res) => {
 				return device_type ? _.pick(res, device_type) : res;
+			});
+	}
+
+	actionActiveWorkstations({
+		organization, device_type
+	}) {
+		return this.actionGetWorkstationsCache({
+				organization, device_type
 			})
-			.catch((err) => {
-				console.log("GET WS CACHE ERR", err.stack);
-				return [];
+			.then((res) => {
+				return _.mapValues(res, v => _.filter(v, 'active'));
 			});
 	}
 
@@ -282,7 +285,7 @@ class Workstation {
 					task_type: "add-task",
 					params: {
 						_action: "cache-workstations",
-						organization: ws.attached_to
+						organization: _.uniq(_.map(ws, 'attached_to'))
 					}
 				});
 				let flattened = _.flatMap(res, (v) => _.values(v));
