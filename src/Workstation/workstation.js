@@ -154,6 +154,7 @@ class Workstation {
 					satellite_type
 				}) : this.iris.getEntryTypeless(workstation))
 			.then((res) => {
+				// console.log("WORKSTATION", res);
 				return res;
 			})
 			.catch((err) => {
@@ -201,7 +202,7 @@ class Workstation {
 		user_type
 	}) {
 		let ws;
-		// console.log("WS OCC", workstation, user_id, user_type);
+		console.log("WS OCC", workstation, user_id, user_type);
 		return this.iris.getEntryTypeless(workstation)
 			.then((res) => {
 				ws = res[workstation];
