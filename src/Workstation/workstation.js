@@ -17,6 +17,7 @@ class Workstation {
 			this.emitter.emit('taskrunner.add.task', {
 				time: 0,
 				task_name: "",
+				solo: true,
 				module_name: "workstation",
 				task_id: "cache-workstations",
 				task_type: "add-task",
@@ -30,7 +31,7 @@ class Workstation {
 		//API
 	actionCacheWorkstations({
 		initial = false,
-			organization
+		organization
 	}) {
 		return initial ? this.iris.cacheWorkstations() : this.iris.updateWorkstationsCache(organization);
 	}
@@ -186,10 +187,12 @@ class Workstation {
 	}
 
 	actionActiveWorkstations({
-		organization, device_type
+		organization,
+		device_type
 	}) {
 		return this.actionGetWorkstationsCache({
-				organization, device_type
+				organization,
+				device_type
 			})
 			.then((res) => {
 				return _.mapValues(res, v => _.filter(v, 'active'));
@@ -215,8 +218,9 @@ class Workstation {
 			})
 			.then((res) => {
 				this.emitter.emit('taskrunner.add.task', {
-					time: 0,
+					time: 15,
 					task_name: "",
+					solo: true,
 					module_name: "workstation",
 					task_id: "cache-workstations",
 					task_type: "add-task",
@@ -279,8 +283,9 @@ class Workstation {
 			})
 			.then((res) => {
 				this.emitter.emit('taskrunner.add.task', {
-					time: 0,
+					time: 15,
 					task_name: "",
+					solo: true,
 					module_name: "workstation",
 					task_id: "cache-workstations",
 					task_type: "add-task",
