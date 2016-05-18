@@ -14,26 +14,32 @@ class Workstation {
 		this.iris.initContent();
 	}
 	launch() {
-			this.emitter.emit('taskrunner.add.task', {
-				time: 0,
-				task_name: "",
-				solo: true,
-				module_name: "workstation",
-				task_id: "cache-workstations",
-				task_type: "add-task",
-				params: {
-					_action: "cache-workstations",
-					initial: true
-				}
+		return this.iris.getOrganizationTree()
+			.then((res) => {
+				_.map(res, (org) => {
+					this.emitter.emit('taskrunner.add.task', {
+						time: 0,
+						task_name: "",
+						solo: true,
+						module_name: "workstation",
+						task_id: "cache-workstations",
+						task_type: "add-task",
+						params: {
+							_action: "cache-workstations",
+							organization: org['@id']
+						}
+					});
+				});
+				return Promise.resolve(true);
 			});
-			return Promise.resolve(true);
-		}
-		//API
+	}
+
+	//API
 	actionCacheWorkstations({
-		initial = false,
-		organization
+		organization,
+		workstation
 	}) {
-		return initial ? this.iris.cacheWorkstations() : this.iris.updateWorkstationsCache(organization);
+		return this.iris.updateWorkstationsCache(organization, _.castArray(workstation));
 	}
 
 
@@ -226,7 +232,8 @@ class Workstation {
 					task_type: "add-task",
 					params: {
 						_action: "cache-workstations",
-						organization: ws.attached_to
+						organization: ws.attached_to,
+						workstation
 					}
 				});
 				return this.emitter.addTask('agent', {
@@ -291,7 +298,8 @@ class Workstation {
 					task_type: "add-task",
 					params: {
 						_action: "cache-workstations",
-						organization: _.uniq(_.map(ws, 'attached_to'))
+						organization: _.uniq(_.map(ws, 'attached_to')),
+						workstation
 					}
 				});
 				let flattened = _.flatMap(res, (v) => _.values(v));
