@@ -16,8 +16,8 @@ class Workstation {
 	launch() {
 		return this.iris.getOrganizationTree()
 			.then((res) => {
-				_.map(res, (org) => {
-					this.emitter.emit('taskrunner.add.task', {
+				return Promise.map(_.values(res), (org) => {
+					return this.emitter.addTask('taskrunner.add.task', {
 						time: 0,
 						task_name: "",
 						solo: true,
@@ -223,7 +223,7 @@ class Workstation {
 				return this.iris.setEntry(ws.type, ws);
 			})
 			.then((res) => {
-				this.emitter.emit('taskrunner.add.task', {
+				this.emitter.command('taskrunner.add.task', {
 					time: 15,
 					task_name: "",
 					solo: true,
@@ -289,7 +289,7 @@ class Workstation {
 				});
 			})
 			.then((res) => {
-				this.emitter.emit('taskrunner.add.task', {
+				this.emitter.command('taskrunner.add.task', {
 					time: 15,
 					task_name: "",
 					solo: true,
