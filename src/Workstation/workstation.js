@@ -49,9 +49,7 @@ class Workstation {
 		return this.iris.getWorkstation({
 				keys: [workstation]
 			})
-			.then((res) => {
-				return _.mapValues(res, val => val.device_type);
-			});
+			.then((res) => _.mapValues(res, val => val.device_type));
 	}
 
 	actionById({
@@ -160,14 +158,7 @@ class Workstation {
 					parent,
 					satellite_type
 				}) : this.iris.getEntryTypeless(workstation))
-			.then((res) => {
-				// console.log("WORKSTATION", res);
-				return res;
-			})
-			.catch((err) => {
-				console.log("WS ERR!", err.stack);
-				return {};
-			});
+			.catch(err => ({}));
 	}
 
 	actionSatellite({
@@ -187,9 +178,7 @@ class Workstation {
 		organization
 	}) {
 		return this.iris.getWorkstationsCache(organization)
-			.then((res) => {
-				return device_type ? _.pick(res, device_type) : res;
-			});
+			.then((res) => device_type ? _.pick(res, device_type) : res);
 	}
 
 	actionActiveWorkstations({
@@ -200,9 +189,7 @@ class Workstation {
 				organization,
 				device_type
 			})
-			.then((res) => {
-				return _.mapValues(res, v => _.filter(v, 'active'));
-			});
+			.then((res) => _.mapValues(res, v => _.filter(v, 'active')));
 	}
 
 	actionOccupy({
@@ -322,6 +309,11 @@ class Workstation {
 			})
 			.catch(err => {
 				console.log("ERR", err.stack);
+				global.logger && logger.error(
+					err, {
+						module: 'workstation',
+						method: 'leave'
+					});
 				return {
 					success: false
 				};
