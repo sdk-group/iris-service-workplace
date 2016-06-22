@@ -133,6 +133,12 @@ class Workstation {
 						organization
 					}
 				});
+				global.logger && logger.info({
+					module: 'workstation',
+					method: 'logout-all',
+					organization,
+					to_logout_ws
+				}, 'Logged out: ');
 				console.log("CLEAR LOGINS");
 				return true;
 			});
