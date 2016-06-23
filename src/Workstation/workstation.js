@@ -16,7 +16,7 @@ class Workstation {
 	launch() {
 		return this.iris.getOrganizationTree()
 			.then((res) => {
-				return Promise.map(_.values(res), (org) => {
+				_.map(res, (org) => {
 					this.emitter.addTask('taskrunner.add.task', {
 						time: 0,
 						task_name: "",
@@ -29,18 +29,11 @@ class Workstation {
 							organization: org['@id']
 						}
 					});
-					this.emitter.addTask('taskrunner.add.task', {
-						time: 0,
-						task_name: "",
-						solo: true,
-						module_name: "workstation",
-						task_id: "schedule-logout-all",
-						task_type: "add-task",
-						params: {
-							_action: "schedule-logout-all",
-							organization: org['@id']
-						}
-					});
+
+				});
+
+				return this.actionScheduleLogoutAll({
+					organization: _.map(res, '@id')
 				});
 				return Promise.resolve(true);
 			});
@@ -54,13 +47,17 @@ class Workstation {
 				organization
 			})
 			.then((res) => {
-				let time = res[organization].org_merged.auto_logout_time;
-				let timezone = res[organization].org_merged.org_timezone;
-				if (time) {
-					let t = moment.tz(time, 'HH:mm', timezone);
-					let tm = t.diff(moment.tz(timezone), 'seconds') % 86400;
+				let to_logout = _.filter(res, org => !_.isUndefined(org.org_merged.auto_logout_time));
+				let times = {};
+				_.map(to_logout, (org) => {
+					let t = moment.tz(org.org_merged.auto_logout_time, 'HH:mm', org.org_merged.org_timezone);
+					let tm = t.diff(moment.tz(org.org_merged.org_timezone), 'seconds') % 86400;
 					if (tm <= 0) tm = 86400 + tm;
-
+					times[tm] = times[tm] || [];
+					times[tm].push(org.org_merged.id);
+				});
+				console.log("TIMES", times);
+				_.map(times, (orgs, tm) => {
 					this.emitter.addTask('taskrunner.add.task', {
 						time: tm,
 						task_name: "",
@@ -72,25 +69,20 @@ class Workstation {
 						ahead: false,
 						params: {
 							_action: "auto-logout-all",
-							organization,
-							timezone,
-							time
+							organization: orgs
 						}
 					});
-				}
+
+				});
 				return true;
 			});
 	}
 
 	actionAutoLogoutAll({
-		organization,
-		timezone,
-		time
+		organization
 	}) {
 		this.actionScheduleLogoutAll({
-			organization,
-			timezone,
-			time
+			organization
 		});
 		return this.actionLogoutAll({
 			organization
@@ -101,37 +93,46 @@ class Workstation {
 		organization
 	}) {
 		let to_logout_ws;
-		return this.actionGetWorkstationsCache({
-				organization,
-				device_type: ['control-panel']
-			})
-			.then(res => {
-				let ws = res['control-panel'];
-				let to_logout_agents = _.uniq(_.flatMap(ws, 'occupied_by'));
-				to_logout_ws = _.map(ws, 'id');
-				console.log(to_logout_ws, to_logout_agents);
+		return Promise.map(organization, (org) => {
 				return this.emitter.addTask('agent', {
-					_action: 'logout',
-					user_id: to_logout_agents
+					_action: 'logout-all',
+					organization: org
+				});
+			})
+			.then((res) => {
+				return Promise.map(organization, (org) => {
+					return this.actionGetWorkstationsCache({
+						organization: org,
+						device_type: ['control-panel']
+					});
 				});
 			})
 			.then(res => {
+				to_logout_ws = _(res)
+					.flatMap('control-panel')
+					.compact()
+					.flatMap('id')
+					.value();
+				console.log(to_logout_ws);
+
 				return Promise.map(to_logout_ws, workstation => this.actionClearOccupation({
 					workstation
 				}));
 			})
 			.then((res) => {
-				this.emitter.addTask('taskrunner.add.task', {
-					time: 0,
-					task_name: "",
-					solo: true,
-					module_name: "workstation",
-					task_id: "cache-workstations",
-					task_type: "add-task",
-					params: {
-						_action: "cache-workstations",
-						organization
-					}
+				_.map(organization, (org) => {
+					this.emitter.addTask('taskrunner.add.task', {
+						time: 0,
+						task_name: "",
+						solo: true,
+						module_name: "workstation",
+						task_id: "cache-workstations",
+						task_type: "add-task",
+						params: {
+							_action: "cache-workstations",
+							organization: org
+						}
+					});
 				});
 				global.logger && logger.info({
 					module: 'workstation',
