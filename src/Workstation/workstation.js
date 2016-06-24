@@ -21,6 +21,7 @@ class Workstation {
 						time: 0,
 						task_name: "",
 						solo: true,
+						cancellation_code: org,
 						module_name: "workstation",
 						task_id: "cache-workstations",
 						task_type: "add-task",
@@ -54,25 +55,22 @@ class Workstation {
 					let tm = t.diff(moment.tz(org.org_merged.org_timezone), 'seconds') % 86400;
 					if (tm <= 0) tm = 86400 + tm;
 					times[tm] = times[tm] || [];
-					times[tm].push(org.org_merged.id);
-				});
-				console.log("TIMES", times);
-				_.map(times, (orgs, tm) => {
+					let org_id = org.org_merged.id;
 					this.emitter.addTask('taskrunner.add.task', {
 						time: tm,
 						task_name: "",
-						solo: true,
 						ahead: false,
+						solo: true,
+						cancellation_code: org_id,
 						module_name: "workstation",
 						task_id: "auto-logout-all",
 						task_type: "add-task",
 						ahead: false,
 						params: {
 							_action: "auto-logout-all",
-							organization: orgs
+							organization: org_id
 						}
 					});
-
 				});
 				return true;
 			});
@@ -93,7 +91,7 @@ class Workstation {
 		organization
 	}) {
 		let to_logout_ws;
-		return Promise.map(organization, (org) => {
+		return Promise.map(_.castArray(organization), (org) => {
 				return this.emitter.addTask('agent', {
 					_action: 'logout-all',
 					organization: org
@@ -113,7 +111,7 @@ class Workstation {
 					.compact()
 					.flatMap('id')
 					.value();
-				console.log(to_logout_ws);
+				// console.log(to_logout_ws);
 
 				return Promise.map(to_logout_ws, workstation => this.actionClearOccupation({
 					workstation
@@ -125,8 +123,9 @@ class Workstation {
 						time: 0,
 						task_name: "",
 						solo: true,
+						cancellation_code: org,
 						module_name: "workstation",
-						task_id: "cache-workstations",
+					task_id: "cache-workstations",
 						task_type: "add-task",
 						params: {
 							_action: "cache-workstations",
@@ -338,6 +337,7 @@ class Workstation {
 					time: 0,
 					task_name: "",
 					solo: true,
+					cancellation_code: ws.attached_to,
 					module_name: "workstation",
 					task_id: "cache-workstations",
 					task_type: "add-task",
