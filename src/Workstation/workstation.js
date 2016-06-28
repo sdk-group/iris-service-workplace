@@ -16,26 +16,16 @@ class Workstation {
 	launch() {
 		return this.iris.getOrganizationTree()
 			.then((res) => {
-				_.map(res, (org) => {
-					this.emitter.addTask('taskrunner.add.task', {
-						time: 0,
-						task_name: "",
-						solo: true,
-						cancellation_code: org,
-						module_name: "workstation",
-						task_id: "cache-workstations",
-						task_type: "add-task",
-						params: {
-							_action: "cache-workstations",
+				return Promise.mapSeries(_.values(res), (org) => {
+						return this.actionCacheWorkstations({
 							organization: org['@id']
-						}
+						});
+					})
+					.then(() => {
+						return this.actionScheduleLogoutAll({
+							organization: _.map(res, '@id')
+						});
 					});
-
-				});
-
-				return this.actionScheduleLogoutAll({
-					organization: _.map(res, '@id')
-				});
 				return Promise.resolve(true);
 			});
 	}
@@ -50,16 +40,15 @@ class Workstation {
 			.then((res) => {
 				let to_logout = _.filter(res, org => !_.isUndefined(org.org_merged.auto_logout_time));
 				let times = {};
-				_.map(to_logout, (org) => {
+				return Promise.map(to_logout, (org) => {
 					let t = moment.tz(org.org_merged.auto_logout_time, 'HH:mm', org.org_merged.org_timezone);
 					let tm = t.diff(moment.tz(org.org_merged.org_timezone), 'seconds') % 86400;
 					if (tm <= 0) tm = 86400 + tm;
 					times[tm] = times[tm] || [];
 					let org_id = org.org_merged.id;
-					this.emitter.addTask('taskrunner.add.task', {
+					return this.emitter.addTask('taskrunner.add.task', {
 						time: tm,
 						task_name: "",
-						ahead: false,
 						solo: true,
 						cancellation_code: org_id,
 						module_name: "workstation",
@@ -72,19 +61,20 @@ class Workstation {
 						}
 					});
 				});
-				return true;
 			});
 	}
 
 	actionAutoLogoutAll({
 		organization
 	}) {
-		this.actionScheduleLogoutAll({
-			organization
-		});
-		return this.actionLogoutAll({
-			organization
-		});
+		return this.actionScheduleLogoutAll({
+				organization
+			})
+			.then(res => {
+				return this.actionLogoutAll({
+					organization
+				});
+			});
 	}
 
 	actionLogoutAll({
@@ -98,7 +88,7 @@ class Workstation {
 				});
 			})
 			.then((res) => {
-				return Promise.map(organization, (org) => {
+				return Promise.map(_.castArray(organization), (org) => {
 					return this.actionGetWorkstationsCache({
 						organization: org,
 						device_type: ['control-panel']
@@ -111,28 +101,19 @@ class Workstation {
 					.compact()
 					.flatMap('id')
 					.value();
-				// console.log(to_logout_ws);
 
 				return Promise.map(to_logout_ws, workstation => this.actionClearOccupation({
 					workstation
 				}));
 			})
 			.then((res) => {
-				_.map(organization, (org) => {
-					this.emitter.addTask('taskrunner.add.task', {
-						time: 0,
-						task_name: "",
-						solo: true,
-						cancellation_code: org,
-						module_name: "workstation",
-					task_id: "cache-workstations",
-						task_type: "add-task",
-						params: {
-							_action: "cache-workstations",
-							organization: org
-						}
+				return Promise.map(_.castArray(organization), (org) => {
+					return this.actionCacheWorkstations({
+						organization: org
 					});
 				});
+			})
+			.then(res => {
 				global.logger && logger.info({
 					module: 'workstation',
 					method: 'logout-all',
@@ -184,7 +165,7 @@ class Workstation {
 		user_id,
 		organization
 	}) {
-		return Promise.map(organization, (org) => this.actionGetWorkstationsCache({
+		return Promise.map(_.castArray(organization), (org) => this.actionGetWorkstationsCache({
 				organization: org
 			}))
 			.then((res) => {
@@ -333,20 +314,12 @@ class Workstation {
 				return this.iris.setEntry(ws.type, ws);
 			})
 			.then((res) => {
-				this.emitter.command('taskrunner.add.task', {
-					time: 0,
-					task_name: "",
-					solo: true,
-					cancellation_code: ws.attached_to,
-					module_name: "workstation",
-					task_id: "cache-workstations",
-					task_type: "add-task",
-					params: {
-						_action: "cache-workstations",
-						organization: ws.attached_to,
-						workstation
-					}
+				return this.actionCacheWorkstations({
+					organization: ws.attached_to,
+					workstation
 				});
+			})
+			.then(res => {
 				return this.emitter.addTask('agent', {
 					_action: 'login',
 					user_id,
@@ -369,6 +342,7 @@ class Workstation {
 	}) {
 		let fin;
 		let ws;
+		console.log("LEAVE", user_id, workstation);
 		return this.iris.getEntryTypeless(workstation)
 			.then((res) => {
 				ws = res;
@@ -390,29 +364,29 @@ class Workstation {
 					});
 					return acc;
 				}, {});
+				let p = _(ws)
+					.flatMap('attached_to')
+					.uniq()
+					.compact()
+					.value();
+				return Promise.map(p, (org_id) => {
+					return this.actionCacheWorkstations({
+						organization: org_id,
+						workstation
+					});
+				});
+			})
+			.then(res => {
 				return this.actionByAgent({
 					user_id,
 					organization: _(ws)
-						.map('attached_to')
+						.flatMap('attached_to')
 						.uniq()
 						.compact()
 						.value()
 				});
 			})
 			.then((res) => {
-				this.emitter.command('taskrunner.add.task', {
-					time: 0,
-					task_name: "",
-					solo: true,
-					module_name: "workstation",
-					task_id: "cache-workstations",
-					task_type: "add-task",
-					params: {
-						_action: "cache-workstations",
-						organization: _.uniq(_.map(ws, 'attached_to')),
-						workstation
-					}
-				});
 				let flattened = _.flatMap(res, (v) => _.values(v));
 				let filtered = _.filter(flattened, (ws) => {
 					let occupation = _.castArray(ws.occupied_by);
