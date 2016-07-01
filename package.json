@@ -27,7 +27,7 @@
 	},
 	"homepage": "https://github.com/sdk-group/iris-service-workstation#readme",
 	"devDependencies": {
-		"babel-plugin-remove-comments": "^2.0.0",
+
 		"babel-plugin-transform-remove-console": "^6.8.0",
 		"babel-plugin-transform-strict-mode": "^6.8.0",
 		"babel-plugin-undeclared-variables-check": "^6.8.0",
