@@ -77,6 +77,39 @@ class Workstation {
 			});
 	}
 
+	actionChangeState({
+		workstation,
+		state
+	}) {
+		let orgs = [];
+		return this.iris.getEntryTypeless(workstation)
+			.then((res) => {
+				let ws = _(res)
+					.values()
+					.compact()
+					.map(a => {
+						a.state = state;
+						if (!~_.indexOf(orgs, a.attached_to))
+							orgs.push(a.attached_to);
+						return a;
+					})
+					.value();
+				return this.iris.setEntryTypeless(ws);
+			})
+			.then((res) => {
+				return Promise.map(orgs, organization => this.actionCacheWorkstations({
+					organization
+				}));
+			})
+			.then((res) => {
+				// console.log("USER CHSTATE", user_id, res);
+				global.logger && logger.info("Workstation %s changes state to %s", workstation, state);
+				return {
+					success: true
+				};
+			});
+	}
+
 	actionLogoutAll({
 		organization
 	}) {
@@ -132,6 +165,7 @@ class Workstation {
 			.then((res) => {
 				let ws = _.map(_.filter(res, r => !_.isEmpty(r.occupied_by)), w => {
 					w.occupied_by = [];
+					w.state = 'inactive';
 					return w;
 				});
 				return this.iris.setEntryTypeless(ws);
@@ -293,7 +327,7 @@ class Workstation {
 				organization,
 				device_type
 			})
-			.then((res) => _.mapValues(res, v => _.filter(v, 'active')));
+			.then((res) => _.mapValues(res, v => _.filter(v, vv => vv.state == 'active' || vv.state == 'paused')));
 	}
 
 	actionOccupy({
@@ -311,6 +345,7 @@ class Workstation {
 				let occupation = ws.occupied_by || [];
 				occupation = _.castArray(occupation);
 				ws.occupied_by = _.uniq(_.concat(occupation, user_id));
+				ws.state = 'active';
 				return this.iris.setEntry(ws.type, ws);
 			})
 			.then((res) => {
@@ -349,6 +384,8 @@ class Workstation {
 				let to_put = _.map(res, (ws, key) => {
 					let occupation = _.castArray(ws.occupied_by);
 					ws.occupied_by = _.uniq(_.filter(occupation, (user) => (user !== user_id)));
+					if (_.isEmpty(ws.occupied_by))
+						ws.state = 'inactive';
 					return ws;
 				});
 				let p = _.map(_.groupBy(to_put, 'type'), (ws, type) => {
