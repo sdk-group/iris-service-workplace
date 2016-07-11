@@ -321,13 +321,39 @@ class Workstation {
 
 	actionActiveWorkstations({
 		organization,
+		device_type,
+		state = ['active']
+	}) {
+		return this.actionGetWorkstationsCache({
+				organization,
+				device_type
+			})
+			.then((res) => _.mapValues(res, v => _.filter(v, vv => !!~_.indexOf(_.castArray(state), vv.state))));
+	}
+
+	actionResourceKeys({
+		organization,
 		device_type
 	}) {
 		return this.actionGetWorkstationsCache({
 				organization,
 				device_type
 			})
-			.then((res) => _.mapValues(res, v => _.filter(v, vv => vv.state == 'active' || vv.state == 'paused')));
+			.then((res) => {
+				let active = [];
+				let all = _.flatMap(res, (v, dt) => {
+					return _.map(v, (vv) => {
+						if (vv.state == 'active') {
+							active.push(vv.id);
+						}
+						return vv.id;
+					});
+				});
+				return {
+					all: all,
+					active: active
+				};
+			});
 	}
 
 	actionOccupy({
@@ -344,6 +370,10 @@ class Workstation {
 					return Promise.reject(new Error("No such workstations."));
 				let occupation = ws.occupied_by || [];
 				occupation = _.castArray(occupation);
+				if (ws.device_type == 'control-panel') {
+					if (!_.isEmpty(occupation) && !~_.indexOf(occupation, user_id))
+						return Promise.reject(new Error(`Workstation ${workstation} is already occupied by agents ${occupation}.`));
+				}
 				ws.occupied_by = _.uniq(_.concat(occupation, user_id));
 				ws.state = 'active';
 				return this.iris.setEntry(ws.type, ws);
