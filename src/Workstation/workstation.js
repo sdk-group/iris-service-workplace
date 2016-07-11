@@ -365,6 +365,7 @@ class Workstation {
 		console.log("WS OCC", workstation, user_id, user_type);
 		return this.iris.getEntryTypeless(workstation)
 			.then((res) => {
+				console.log("ws entry");
 				ws = res[workstation];
 				if (!ws)
 					return Promise.reject(new Error("No such workstations."));
@@ -376,15 +377,18 @@ class Workstation {
 				}
 				ws.occupied_by = _.uniq(_.concat(occupation, user_id));
 				ws.state = 'active';
-				return this.iris.setEntry(ws.type, ws);
+				return this.iris.setEntryTypeless(ws);
 			})
 			.then((res) => {
+				console.log("ws set");
 				return this.actionCacheWorkstations({
 					organization: ws.attached_to,
 					workstation
 				});
 			})
 			.then(res => {
+				console.log("ws set cache");
+
 				return this.emitter.addTask('agent', {
 					_action: 'login',
 					user_id,
@@ -393,6 +397,8 @@ class Workstation {
 				});
 			})
 			.then((res) => {
+				console.log("ws login");
+
 				if (!res.success)
 					return Promise.reject(new Error("Failed to login user."));
 				return {
