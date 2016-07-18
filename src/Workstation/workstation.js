@@ -57,7 +57,8 @@ class Workstation {
 						ahead: false,
 						params: {
 							_action: "auto-logout-all",
-							organization: org_id
+							organization: org_id,
+							org_addr: org.org_addr
 						}
 					});
 				});
@@ -65,14 +66,16 @@ class Workstation {
 	}
 
 	actionAutoLogoutAll({
-		organization
+		organization,
+		org_addr
 	}) {
 		return this.actionScheduleLogoutAll({
 				organization
 			})
 			.then(res => {
 				return this.actionLogoutAll({
-					organization
+					organization: organization,
+					org_addr: org_addr
 				});
 			});
 	}
@@ -111,7 +114,8 @@ class Workstation {
 	}
 
 	actionLogoutAll({
-		organization
+		organization,
+		org_addr
 	}) {
 		let to_logout_ws;
 		return Promise.map(_.castArray(organization), (org) => {
@@ -140,6 +144,13 @@ class Workstation {
 				}));
 			})
 			.then((res) => {
+				_.map(to_logout_ws, (ws) => {
+					let to_join = ['command.logout', org_addr, ws];
+					this.emitter.emit('broadcast', {
+						event: _.join(to_join, ".")
+					});
+				});
+
 				return Promise.map(_.castArray(organization), (org) => {
 					return this.actionCacheWorkstations({
 						organization: org
