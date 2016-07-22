@@ -80,38 +80,6 @@ class Workstation {
 			});
 	}
 
-	actionChangeState({
-		workstation,
-		state
-	}) {
-		let orgs = [];
-		return this.iris.getEntryTypeless(workstation)
-			.then((res) => {
-				let ws = _(res)
-					.values()
-					.compact()
-					.map(a => {
-						a.state = state;
-						if (!~_.indexOf(orgs, a.attached_to))
-							orgs.push(a.attached_to);
-						return a;
-					})
-					.value();
-				return this.iris.setEntryTypeless(ws);
-			})
-			.then((res) => {
-				return Promise.map(orgs, organization => this.actionCacheWorkstations({
-					organization
-				}));
-			})
-			.then((res) => {
-				// console.log("USER CHSTATE", user_id, res);
-				global.logger && logger.info("Workstation %s changes state to %s", workstation, state);
-				return {
-					success: true
-				};
-			});
-	}
 
 	actionLogoutAll({
 		organization,
@@ -435,19 +403,25 @@ class Workstation {
 						ws.state = 'inactive';
 					return ws;
 				});
-				let p = _.map(_.groupBy(to_put, 'type'), (ws, type) => {
-					return this.iris.setEntry(type, ws);
-				});
-
-				return Promise.all(p);
+				return this.iris.setEntryTypeless(to_put);
 			})
 			.then((res) => {
-				fin = _.reduce(res, (acc, ws) => {
-					_.map(ws, (val, key) => {
-						acc[key] = !!val.cas;
+				console.log("LEAVE WS", res);
+				fin = _.mapValues(res, val => !!val.cas);
+
+				return Promise.all(_.map(fin, (ws_res, ws_key) => {
+					if (!ws_res)
+						return {
+							success: ws_res
+						};
+					return this.emitter.addTask('queue', {
+						_action: "ticket-close-current",
+						user_id: user_id,
+						workstation: ws_key
 					});
-					return acc;
-				}, {});
+				}));
+			})
+			.then((res) => {
 				let p = _(ws)
 					.flatMap('attached_to')
 					.uniq()
@@ -502,8 +476,55 @@ class Workstation {
 			});
 	}
 
-	actionSupervise() {
-		return Promise.resolve(true);
+
+	actionChangeState({
+		user_id,
+		workstation,
+		state
+	}) {
+		let orgs = [];
+		let fin;
+		return this.iris.getEntryTypeless(workstation)
+			.then((res) => {
+				let ws = _(res)
+					.values()
+					.compact()
+					.map(a => {
+						a.state = state;
+						if (!~_.indexOf(orgs, a.attached_to))
+							orgs.push(a.attached_to);
+						return a;
+					})
+					.value();
+				return this.iris.setEntryTypeless(ws);
+			})
+			.then((res) => {
+				fin = _.mapValues(res, val => !!val.cas);
+
+				return Promise.all(_.map(fin, (ws_res, ws_key) => {
+					if (!ws_res || state == 'active')
+						return {
+							success: ws_res
+						};
+					return this.emitter.addTask('queue', {
+						_action: "ticket-close-current",
+						user_id: user_id,
+						workstation: ws_key
+					});
+				}));
+			})
+			.then(res => {
+				return Promise.map(orgs, organization => this.actionCacheWorkstations({
+					organization
+				}));
+			})
+			.then((res) => {
+				// console.log("USER CHSTATE", user_id, res);
+				global.logger && logger.info("Workstation %s changes state to %s", workstation, state);
+				return {
+					success: true
+				};
+			});
 	}
 }
 
