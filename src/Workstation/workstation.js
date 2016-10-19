@@ -16,16 +16,9 @@ class Workstation {
 	launch() {
 		return this.iris.getOrganizationTree()
 			.then((res) => {
-				return Promise.mapSeries(_.values(res), (org) => {
-						return this.actionCacheWorkstations({
-							organization: org['@id']
-						});
-					})
-					.then(() => {
-						return this.actionScheduleLogoutAll({
-							organization: _.map(res, '@id')
-						});
-					});
+				return this.actionScheduleLogoutAll({
+					organization: _.map(res, '@id')
+				});
 				return Promise.resolve(true);
 			});
 	}
@@ -119,13 +112,6 @@ class Workstation {
 					});
 				});
 
-				return Promise.map(_.castArray(organization), (org) => {
-					return this.actionCacheWorkstations({
-						organization: org
-					});
-				});
-			})
-			.then(res => {
 				global.logger && logger.info({
 					module: 'workstation',
 					method: 'logout-all',
@@ -149,13 +135,6 @@ class Workstation {
 				});
 				return this.iris.setEntryTypeless(ws);
 			});
-	}
-
-	actionCacheWorkstations({
-		organization,
-		workstation
-	}) {
-		return this.iris.updateWorkstationsCache(organization, _.castArray(workstation));
 	}
 
 
@@ -358,13 +337,6 @@ class Workstation {
 				ws.state = 'active';
 				return this.iris.setEntryTypeless(ws);
 			})
-			.then((res) => {
-				console.log("ws set");
-				return this.actionCacheWorkstations({
-					organization: ws.attached_to,
-					workstation
-				});
-			})
 			.then(res => {
 				console.log("ws set cache");
 
@@ -420,19 +392,6 @@ class Workstation {
 						workstation: ws_key
 					});
 				}));
-			})
-			.then((res) => {
-				let p = _(ws)
-					.flatMap('attached_to')
-					.uniq()
-					.compact()
-					.value();
-				return Promise.map(p, (org_id) => {
-					return this.actionCacheWorkstations({
-						organization: org_id,
-						workstation
-					});
-				});
 			})
 			.then(res => {
 				return this.actionByAgent({
@@ -511,11 +470,6 @@ class Workstation {
 						user_id: user_id,
 						workstation: ws_key
 					});
-				}));
-			})
-			.then(res => {
-				return Promise.map(orgs, organization => this.actionCacheWorkstations({
-					organization
 				}));
 			})
 			.then((res) => {
