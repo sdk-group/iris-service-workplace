@@ -168,7 +168,7 @@ class Workstation {
 					return acc;
 				}, {});
 				return _.reduce(data, (acc, val, key) => {
-					acc[_.upperFirst(_.camelCase(key))] = _.filter(val, (v) => !_.isEmpty(_.intersection(_.castArray(v.occupied_by), _.castArray(user_id))));
+					acc[key] = _.filter(val, (v) => !_.isEmpty(_.intersection(_.castArray(v.occupied_by), _.castArray(user_id))));
 					return acc;
 				}, {});
 			});
@@ -358,6 +358,79 @@ class Workstation {
 			});
 	}
 
+
+	actionUserLogout({
+		workstation: workstation
+	}) {
+		let to_logout_ws;
+		let organization, user_id;
+		return this.emitter.addTask("workstation", {
+				_action: "by-id",
+				workstation: workstation
+			})
+			.then((res) => {
+				let ws = res[workstation];
+				user_id = ws.occupied_by[0];
+				organization = ws.attached_to;
+
+				return Promise.props({
+					ws: this.emitter.addTask('workstation', {
+						_action: "by-agent",
+						user_id: user_id,
+						organization: organization
+					}),
+					org: this.emitter.addTask('workstation', {
+							_action: 'workstation-organization-data',
+							workstation: workstation
+						})
+						.then(res => res[workstation])
+				});
+			})
+			.then((res) => {
+				console.log(res);
+				to_logout_ws = res.ws['control-panel'];
+				_.map(to_logout_ws, (ws) => {
+					let to_join = ['command.logout', res.org.org_addr, ws];
+					this.emitter.emit('broadcast', {
+						event: _.join(to_join, ".")
+					});
+				});
+				// console.log("LEAVING II", to_logout_ws);
+				let to_put = _.map(to_logout_ws, (ws, key) => {
+					let occupation = _.castArray(ws.occupied_by);
+					ws.occupied_by = _.uniq(_.filter(occupation, (usr) => (usr !== user_id)));
+					if (_.isEmpty(ws.occupied_by))
+						ws.state = 'inactive';
+					return ws;
+				});
+				// console.log("LEAVING II", to_put);
+				return this.iris.setEntryTypeless(to_put);
+			})
+			.then((res) => {
+				console.log("LEAVE WS USR", res);
+				let fin = _.mapValues(res, val => !!val.cas);
+
+				return Promise.all(_.map(fin, (ws_res, ws_key) => {
+					if (!ws_res)
+						return {
+							success: ws_res
+						};
+					return this.emitter.addTask('queue', {
+						_action: "ticket-close-current",
+						user_id: user_id,
+						workstation: ws_key
+					});
+				}));
+			})
+			.then(res => {
+				return this.emitter.addTask('agent', {
+					_action: 'logout',
+					user_id
+				});
+			});
+	}
+
+
 	actionLeave({
 		user_id,
 		workstation
@@ -404,6 +477,7 @@ class Workstation {
 				});
 			})
 			.then((res) => {
+				console.log(res);
 				let flattened = _.flatMap(res, (v) => _.values(v));
 				let filtered = _.filter(flattened, (ws) => {
 					let occupation = _.castArray(ws.occupied_by);
