@@ -167,10 +167,7 @@ class Workstation {
 					});
 					return acc;
 				}, {});
-				return _.reduce(data, (acc, val, key) => {
-					acc[key] = _.filter(val, (v) => !_.isEmpty(_.intersection(_.castArray(v.occupied_by), _.castArray(user_id))));
-					return acc;
-				}, {});
+				return _.mapValues(data, (val) => _.filter(val, (v) => v && !_.isEmpty(_.intersection(_.castArray(v.occupied_by), _.castArray(user_id)))));
 			});
 	}
 
@@ -370,6 +367,7 @@ class Workstation {
 			})
 			.then((res) => {
 				let ws = res[workstation];
+				console.log(ws);
 				user_id = ws.occupied_by[0];
 				organization = ws.attached_to;
 
@@ -390,12 +388,12 @@ class Workstation {
 				console.log(res);
 				to_logout_ws = res.ws['control-panel'];
 				_.map(to_logout_ws, (ws) => {
-					let to_join = ['command.logout', res.org.org_addr, ws];
+					let to_join = ['command.logout', res.org.org_addr, ws.id];
 					this.emitter.emit('broadcast', {
 						event: _.join(to_join, ".")
 					});
 				});
-				// console.log("LEAVING II", to_logout_ws);
+				console.log("LEAVING II", to_logout_ws);
 				let to_put = _.map(to_logout_ws, (ws, key) => {
 					let occupation = _.castArray(ws.occupied_by);
 					ws.occupied_by = _.uniq(_.filter(occupation, (usr) => (usr !== user_id)));
