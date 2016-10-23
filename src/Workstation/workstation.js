@@ -357,10 +357,11 @@ class Workstation {
 
 
 	actionUserLogout({
+		user_id: administrator,
 		workstation: workstation
 	}) {
 		let to_logout_ws;
-		let organization, user_id;
+		let org, user_id;
 		return this.emitter.addTask("workstation", {
 				_action: "by-id",
 				workstation: workstation
@@ -369,7 +370,7 @@ class Workstation {
 				let ws = res[workstation];
 				console.log(ws);
 				user_id = ws.occupied_by[0];
-				organization = ws.attached_to;
+				let organization = ws.attached_to;
 
 				return Promise.props({
 					ws: this.emitter.addTask('workstation', {
@@ -385,15 +386,26 @@ class Workstation {
 				});
 			})
 			.then((res) => {
-				console.log(res);
+				org = res.org;
 				to_logout_ws = res.ws['control-panel'];
+				return Promise.map(to_logout_ws, (ws) => {
+					return this.emitter.addTask('queue', {
+						_action: "clear-agent",
+						administrator_id: administrator,
+						user_id: user_id,
+						workstation: ws.id
+					});
+				});
+			})
+			.then(res => {
+				console.log("afterclear", res);
 				_.map(to_logout_ws, (ws) => {
-					let to_join = ['command.logout', res.org.org_addr, ws.id];
+					let to_join = ['command.logout', org.org_addr, ws.id];
 					this.emitter.emit('broadcast', {
 						event: _.join(to_join, ".")
 					});
 				});
-				console.log("LEAVING II", to_logout_ws);
+				// console.log("LEAVING II", to_logout_ws);
 				let to_put = _.map(to_logout_ws, (ws, key) => {
 					let occupation = _.castArray(ws.occupied_by);
 					ws.occupied_by = _.uniq(_.filter(occupation, (usr) => (usr !== user_id)));
@@ -405,22 +417,6 @@ class Workstation {
 				return this.iris.setEntryTypeless(to_put);
 			})
 			.then((res) => {
-				console.log("LEAVE WS USR", res);
-				let fin = _.mapValues(res, val => !!val.cas);
-
-				return Promise.all(_.map(fin, (ws_res, ws_key) => {
-					if (!ws_res)
-						return {
-							success: ws_res
-						};
-					return this.emitter.addTask('queue', {
-						_action: "ticket-close-current",
-						user_id: user_id,
-						workstation: ws_key
-					});
-				}));
-			})
-			.then(res => {
 				return this.emitter.addTask('agent', {
 					_action: 'logout',
 					user_id
