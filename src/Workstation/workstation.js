@@ -358,7 +358,8 @@ class Workstation {
 
 	actionUserLogout({
 		user_id: administrator,
-		workstation: workstation
+		target: workstation,
+		workstation: adm_workstation
 	}) {
 		let to_logout_ws;
 		let org, user_id;
@@ -392,6 +393,7 @@ class Workstation {
 					return this.emitter.addTask('queue', {
 						_action: "clear-agent",
 						administrator_id: administrator,
+						administrator_ws: adm_workstation,
 						user_id: user_id,
 						workstation: ws.id
 					});
