@@ -288,6 +288,7 @@ class Workstation {
 
 	actionResourceKeys({
 		organization,
+		state = ['active'],
 		device_type
 	}) {
 		return this.actionGetWorkstationsCache({
@@ -298,7 +299,7 @@ class Workstation {
 				let active = [];
 				let all = _.flatMap(res, (v, dt) => {
 					return _.map(v, (vv) => {
-						if (vv.state == 'active') {
+						if (!!~state.indexOf(vv.state)) {
 							active.push(vv.id);
 						}
 						return vv.id;
@@ -310,6 +311,54 @@ class Workstation {
 				};
 			});
 	}
+
+	actionProviders({
+		organization,
+		state = ['active'],
+		device_type
+	}) {
+		return this.actionGetWorkstationsCache({
+				organization,
+				device_type
+			})
+			.then((res) => {
+				let active = {},
+					l;
+				_.map(res, (v) => {
+					l = v.length;
+					while (l--) {
+						if (!!~state.indexOf(v[l].state)) {
+							active[v[l].id] = v[l];
+						}
+					}
+				});
+				return active;
+			});
+	}
+
+
+	actionOccupationMap({
+		organization,
+		device_type
+	}) {
+		return this.actionGetWorkstationsCache({
+				organization,
+				device_type
+			})
+			.then((res) => {
+				let occupation_map = {},
+					l;
+				_.map(res, (v) => {
+					l = v.length;
+					while (l--) {
+						if (v[l] && v[l].occupied_by.length > 0)
+							occupation_map[v[l].id] = v[l].occupied_by;
+					}
+				});
+				return occupation_map;
+			});
+	}
+
 
 	actionOccupy({
 		workstation,
