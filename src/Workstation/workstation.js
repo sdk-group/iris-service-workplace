@@ -138,15 +138,6 @@ class Workstation {
 	}
 
 
-	actionType({
-		workstation
-	}) {
-		return this.iris.getWorkstation({
-				keys: [workstation]
-			})
-			.then((res) => _.mapValues(res, val => val.device_type));
-	}
-
 	actionById({
 		workstation
 	}) {
@@ -274,17 +265,6 @@ class Workstation {
 			.then((res) => device_type ? _.pick(res, device_type) : res);
 	}
 
-	actionActiveWorkstations({
-		organization,
-		device_type,
-		state = ['active']
-	}) {
-		return this.actionGetWorkstationsCache({
-				organization,
-				device_type
-			})
-			.then((res) => _.mapValues(res, v => _.filter(v, vv => !!~_.indexOf(_.castArray(state), vv.state))));
-	}
 
 	actionResourceKeys({
 		organization,
@@ -299,7 +279,7 @@ class Workstation {
 				let active = [];
 				let all = _.flatMap(res, (v, dt) => {
 					return _.map(v, (vv) => {
-						if (!!~state.indexOf(vv.state)) {
+						if (state === '*' || !!~state.indexOf(vv.state)) {
 							active.push(vv.id);
 						}
 						return vv.id;
@@ -327,7 +307,7 @@ class Workstation {
 				_.map(res, (v) => {
 					l = v.length;
 					while (l--) {
-						if (!!~state.indexOf(v[l].state)) {
+						if (state === '*' || !!~state.indexOf(v[l].state)) {
 							active[v[l].id] = v[l];
 						}
 					}
