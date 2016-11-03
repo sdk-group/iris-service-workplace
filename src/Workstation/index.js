@@ -8,6 +8,7 @@ let tasks = [];
 
 module.exports = {
 	module: require('./workstation.js'),
+	name: 'workstation',
 	permissions: [],
 	exposed: true,
 	tasks: tasks,
