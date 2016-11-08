@@ -485,8 +485,8 @@ class Workstation {
 							success: ws_res
 						};
 					return this.emitter.addTask('queue', {
-						_action: "ticket-close-current",
-						user_id: user_id,
+						_action: "clear-agent-queue",
+						operator: user_id,
 						workstation: ws_key
 					});
 				}));
@@ -540,6 +540,7 @@ class Workstation {
 		workstation,
 		state
 	}) {
+		console.log(workstation);
 		let orgs = [];
 		let fin;
 		return this.iris.getEntryTypeless(workstation)
@@ -565,8 +566,8 @@ class Workstation {
 							success: ws_res
 						};
 					return this.emitter.addTask('queue', {
-						_action: "ticket-close-current",
-						user_id: user_id,
+						_action: "clear-agent-queue",
+						operator: user_id,
 						workstation: ws_key
 					});
 				}));
