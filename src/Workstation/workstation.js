@@ -378,6 +378,11 @@ class Workstation {
 
 				if (!res.success)
 					return Promise.reject(new Error("Failed to login user."));
+				this.emitter.emit("workstation.emit.occupy", {
+					user_id,
+					workstation,
+					workstation_data: ws
+				});
 				return {
 					workstation: ws
 				};
