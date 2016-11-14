@@ -444,7 +444,7 @@ class Workstation {
 				// console.log("LEAVING II", to_logout_ws);
 				let to_put = _.map(to_logout_ws, (ws, key) => {
 					let occupation = _.castArray(ws.occupied_by);
-					ws.occupied_by = _.uniq(_.filter(occupation, (usr) => (usr !== user_id)));
+					ws.occupied_by = _.uniq(_.filter(occupation, (usr) => usr && (usr !== user_id)));
 					if (_.isEmpty(ws.occupied_by))
 						ws.state = 'inactive';
 					return ws;
@@ -473,7 +473,7 @@ class Workstation {
 				ws = res;
 				let to_put = _.map(res, (ws, key) => {
 					let occupation = _.castArray(ws.occupied_by);
-					ws.occupied_by = _.uniq(_.filter(occupation, (user) => (user !== user_id)));
+					ws.occupied_by = _.uniq(_.filter(occupation, (user) => user && (user !== user_id)));
 					if (_.isEmpty(ws.occupied_by))
 						ws.state = 'inactive';
 					return ws;
@@ -507,7 +507,7 @@ class Workstation {
 				});
 			})
 			.then((res) => {
-				console.log(res);
+				// console.log(res);
 				let flattened = _.flatMap(res, (v) => _.values(v));
 				let filtered = _.filter(flattened, (ws) => {
 					let occupation = _.castArray(ws.occupied_by);
@@ -546,20 +546,18 @@ class Workstation {
 		state
 	}) {
 		console.log(workstation);
-		let orgs = [];
 		let fin;
 		return this.iris.getEntryTypeless(workstation)
 			.then((res) => {
-				let ws = _(res)
-					.values()
-					.compact()
-					.map(a => {
-						a.state = state;
-						if (!~_.indexOf(orgs, a.attached_to))
-							orgs.push(a.attached_to);
-						return a;
-					})
-					.value();
+				let workstations = _.values(res),
+					l = workstations.length,
+					ws = [];
+				while (l--) {
+					if (workstations[l]) {
+						workstations[l].state = state;
+						ws.push(workstations[l]);
+					}
+				}
 				return this.iris.setEntryTypeless(ws);
 			})
 			.then((res) => {
