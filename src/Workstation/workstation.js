@@ -349,7 +349,7 @@ class Workstation {
 		console.log("WS OCC", workstation, user_id, user_type);
 		return this.iris.getEntryTypeless(workstation)
 			.then((res) => {
-				console.log("ws entry");
+				console.log("ws entry", res);
 				ws = res[workstation];
 				if (!ws)
 					return Promise.reject(new Error("No such workstations."));
@@ -378,10 +378,10 @@ class Workstation {
 
 				if (!res.success)
 					return Promise.reject(new Error("Failed to login user."));
-				this.emitter.emit("workstation.emit.occupy", {
+				this.emitter.emit("workstation.emit.change-state", {
 					user_id,
 					workstation,
-					organization: ws[0].attached_to
+					organization: ws.attached_to
 				});
 				return {
 					workstation: ws
@@ -452,7 +452,7 @@ class Workstation {
 				return this.iris.setEntryTypeless(to_logout_ws);
 			})
 			.then((res) => {
-				this.emitter.emit("workstation.emit.leave", {
+				this.emitter.emit("workstation.emit.change-state", {
 					user_id,
 					workstation,
 					organization: org.org_merged.id
@@ -470,27 +470,31 @@ class Workstation {
 		workstation
 	}) {
 		let fin;
-		let ws;
+		let ws, orgs = {};
 		console.log("LEAVE", user_id, workstation);
 		return this.iris.getEntryTypeless(workstation)
 			.then((res) => {
-				ws = res;
-				_.forEach(res, (ws, key) => {
-					let occupation = _.castArray(ws.occupied_by);
-					ws.occupied_by = _.uniq(_.filter(occupation, (user) => user && (user !== user_id)));
+				ws = _.values(res);
+				_.forEach(ws, (ws_data) => {
+					let occupation = _.castArray(ws_data.occupied_by);
+					ws_data.occupied_by = _.uniq(_.filter(occupation, (user) => user && (user !== user_id)));
 					if (_.isEmpty(ws.occupied_by))
-						ws.state = 'inactive';
+						ws_data.state = 'inactive';
+					orgs[ws_data.attached_to] = true;
 				});
+				orgs = Object.keys(orgs);
 				return this.iris.setEntryTypeless(ws);
 			})
 			.then((res) => {
 				console.log("LEAVE WS", res);
 				fin = _.mapValues(res, val => !!val.cas);
-				this.emitter.emit("workstation.emit.leave", {
+
+				this.emitter.emit("workstation.emit.change-state", {
 					user_id,
 					workstation,
-					organization: ws[0].attached_to
+					organization: orgs
 				});
+
 				return Promise.all(_.map(fin, (ws_res, ws_key) => {
 					if (!ws_res)
 						return {
@@ -506,11 +510,7 @@ class Workstation {
 			.then(res => {
 				return this.actionByAgent({
 					user_id,
-					organization: _(ws)
-						.flatMap('attached_to')
-						.uniq()
-						.compact()
-						.value()
+					organization: orgs
 				});
 			})
 			.then((res) => {
@@ -553,7 +553,7 @@ class Workstation {
 		state
 	}) {
 		console.log(workstation);
-		let fin;
+		let fin, orgs = {};
 		return this.iris.getEntryTypeless(workstation)
 			.then((res) => {
 				let workstations = _.values(res),
@@ -563,12 +563,20 @@ class Workstation {
 					if (workstations[l]) {
 						workstations[l].state = state;
 						ws.push(workstations[l]);
+						orgs[workstations[l].attached_to] = true;
 					}
 				}
+				orgs = Object.keys(orgs);
 				return this.iris.setEntryTypeless(ws);
 			})
 			.then((res) => {
 				fin = _.mapValues(res, val => !!val.cas);
+
+				this.emitter.emit("workstation.emit.change-state", {
+					user_id,
+					workstation,
+					organization: orgs
+				});
 
 				return Promise.all(_.map(fin, (ws_res, ws_key) => {
 					if (!ws_res || state == 'active')
