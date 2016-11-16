@@ -381,7 +381,7 @@ class Workstation {
 				this.emitter.emit("workstation.emit.occupy", {
 					user_id,
 					workstation,
-					workstation_data: ws
+					organization: ws[0].attached_to
 				});
 				return {
 					workstation: ws
@@ -403,7 +403,7 @@ class Workstation {
 			})
 			.then((res) => {
 				let ws = res[workstation];
-				console.log(ws);
+				// console.log(ws);
 				user_id = ws.occupied_by[0];
 				let organization = ws.attached_to;
 
@@ -435,24 +435,28 @@ class Workstation {
 			})
 			.then(res => {
 				console.log("afterclear", res);
-				_.map(to_logout_ws, (ws) => {
+				_.forEach(to_logout_ws, (ws) => {
 					let to_join = ['command.logout', org.org_addr, ws.id];
 					this.emitter.emit('broadcast', {
 						event: _.join(to_join, ".")
 					});
 				});
 				// console.log("LEAVING II", to_logout_ws);
-				let to_put = _.map(to_logout_ws, (ws, key) => {
+				_.forEach(to_logout_ws, (ws, key) => {
 					let occupation = _.castArray(ws.occupied_by);
 					ws.occupied_by = _.uniq(_.filter(occupation, (usr) => usr && (usr !== user_id)));
 					if (_.isEmpty(ws.occupied_by))
 						ws.state = 'inactive';
-					return ws;
 				});
 				// console.log("LEAVING II", to_put);
-				return this.iris.setEntryTypeless(to_put);
+				return this.iris.setEntryTypeless(to_logout_ws);
 			})
 			.then((res) => {
+				this.emitter.emit("workstation.emit.leave", {
+					user_id,
+					workstation,
+					organization: org.org_merged.id
+				});
 				return this.emitter.addTask('agent', {
 					_action: 'logout',
 					user_id
@@ -471,19 +475,22 @@ class Workstation {
 		return this.iris.getEntryTypeless(workstation)
 			.then((res) => {
 				ws = res;
-				let to_put = _.map(res, (ws, key) => {
+				_.forEach(res, (ws, key) => {
 					let occupation = _.castArray(ws.occupied_by);
 					ws.occupied_by = _.uniq(_.filter(occupation, (user) => user && (user !== user_id)));
 					if (_.isEmpty(ws.occupied_by))
 						ws.state = 'inactive';
-					return ws;
 				});
-				return this.iris.setEntryTypeless(to_put);
+				return this.iris.setEntryTypeless(ws);
 			})
 			.then((res) => {
 				console.log("LEAVE WS", res);
 				fin = _.mapValues(res, val => !!val.cas);
-
+				this.emitter.emit("workstation.emit.leave", {
+					user_id,
+					workstation,
+					organization: ws[0].attached_to
+				});
 				return Promise.all(_.map(fin, (ws_res, ws_key) => {
 					if (!ws_res)
 						return {
