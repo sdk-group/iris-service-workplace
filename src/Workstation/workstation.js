@@ -3,6 +3,8 @@
 
 let WorkstationApi = require('resource-management-framework')
 	.WorkstationApi;
+let Patchwerk = require("patchwerk");
+let WorkstationCache = require("./storage/control-panel.js");
 
 class Workstation {
 	constructor() {
@@ -12,15 +14,23 @@ class Workstation {
 	init() {
 		this.iris = new WorkstationApi();
 		this.iris.initContent();
+
+		this.patchwerk = Patchwerk(this.emitter);
 	}
 	launch() {
 		return this.iris.getOrganizationTree()
 			.then((res) => {
-				return this.actionScheduleLogoutAll({
-					organization: _.map(res, '@id')
+				let org_keys = _.map(res, '@id');
+
+				this.emitter.on('engine.ready', () => {
+					return this._fillControlPanelCache(org_keys);
 				});
-				return Promise.resolve(true);
-			});
+
+				return this.actionScheduleLogoutAll({
+					organization: org_keys
+				});
+			})
+			.then(res => true);
 	}
 
 	//API
@@ -119,6 +129,9 @@ class Workstation {
 					to_logout_ws
 				}, 'Logged out: ');
 				console.log("CLEAR LOGINS");
+				return this._fillControlPanelCache(org_keys);
+			})
+			.then(res => {
 				return true;
 			});
 	}
@@ -137,12 +150,27 @@ class Workstation {
 			});
 	}
 
-
 	actionById({
 		workstation
 	}) {
 		return this.iris.getEntryTypeless(workstation);
 	}
+
+	_fillControlPanelCache(org_keys) {
+		console.log(org_keys);
+		WorkstationCache.flush();
+		return Promise.map(org_keys, org => this.patchwerk.get("Workstation", {
+				department: org,
+				counter: "*"
+			})
+			.then(res => {
+				if (res.length == 1 && res[0].id == 'undefined')
+					return false;
+				WorkstationCache.addSection(org, res);
+				return true;
+			}));
+	}
+
 
 	actionByAgent({
 		user_id,
@@ -167,13 +195,13 @@ class Workstation {
 		embed_schedules = false
 	}) {
 		let ws;
-		return this.iris.getEntryTypeless(_.castArray(workstation))
+		return this._findWorkstations(_.castArray(workstation))
 			.then((res) => {
-				ws = _.values(res);
+				ws = res;
 				if (embed_schedules) {
-					return this.iris.getWorkstationOrganizationSchedulesChain(_.map(ws, 'attached_to'));
+					return this.iris.getWorkstationOrganizationSchedulesChain(_.map(ws, w => w.get('attached_to')));
 				} else {
-					return this.iris.getWorkstationOrganizationChain(_.map(ws, 'attached_to'));
+					return this.iris.getWorkstationOrganizationChain(_.map(ws, w => w.get('attached_to')));
 				}
 			})
 			.then((offices) => {
@@ -181,8 +209,8 @@ class Workstation {
 				// 	.inspect(offices, {
 				// 		depth: null
 				// 	}));
-				return _.reduce(ws, (acc, ws_data) => {
-					let org_chain = offices[ws_data.attached_to];
+				return _.reduce(ws, (acc, ws_obj) => {
+					let org_chain = offices[ws_obj.get("attached_to")];
 					let org_addr = [];
 					let org_merged = _.reduce(_.orderBy(_.keys(org_chain), _.parseInt, 'desc'), (acc, val) => {
 						acc = _.merge(acc, org_chain[val]);
@@ -190,8 +218,8 @@ class Workstation {
 						return acc;
 					}, {});
 					org_addr = _.join(org_addr, ".");
-					acc[ws_data.id] = {
-						ws: ws_data,
+					acc[ws_obj.id] = {
+						ws: ws_obj.serialize(),
 						org_addr,
 						org_chain,
 						org_merged
@@ -271,25 +299,38 @@ class Workstation {
 		state = ['active'],
 		device_type
 	}) {
-		return this.actionGetWorkstationsCache({
-				organization,
-				device_type
-			})
-			.then((res) => {
-				let active = [];
-				let all = _.flatMap(res, (v, dt) => {
-					return _.map(v, (vv) => {
-						if (state === '*' || !!~state.indexOf(vv.state)) {
-							active.push(vv.id);
-						}
-						return vv.id;
-					});
-				});
-				return {
-					all: all,
-					active: active
-				};
-			});
+		if (device_type == 'control-panel') {
+			let filter_fn = function (ws) {
+				return (state === '*' || !!~state.indexOf(ws.get("state")));
+			}
+			return {
+				all: WorkstationCache.findIdsByFilter(organization),
+				active: WorkstationCache.findIdsByFilter(organization, filter_fn)
+			}
+		} else
+			throw new Error("Should not get here")
+
+
+		// return this.actionGetWorkstationsCache({
+		// 		organization,
+		// 		device_type
+		// 	})
+		// 	.then((res) => {
+		// 		let active = [];
+		// 		let all = _.flatMap(res, (v, dt) => {
+		// 			return _.map(v, (vv) => {
+		// 				if (state === '*' || !!~state.indexOf(vv.state)) {
+		// 					active.push(vv.id);
+		// 				}
+		// 				return vv.id;
+		// 			});
+		// 		});
+		// 		// console.log(all, active);
+		// 		return {
+		// 			all: all,
+		// 			active: active
+		// 		};
+		// 	});
 	}
 
 	actionProviders({
@@ -297,46 +338,75 @@ class Workstation {
 		state = ['active'],
 		device_type
 	}) {
-		return this.actionGetWorkstationsCache({
-				organization,
-				device_type
-			})
-			.then((res) => {
-				let active = {},
-					l;
-				_.map(res, (v) => {
-					l = v.length;
-					while (l--) {
-						if (state === '*' || !!~state.indexOf(v[l].state)) {
-							active[v[l].id] = v[l];
-						}
-					}
-				});
-				return active;
-			});
+		console.log("------------------------------------\n", device_type);
+		if (device_type == 'control-panel') {
+			let filter_fn = function (ws) {
+				return (state === '*' || !!~state.indexOf(ws.get("state")));
+			}
+			let ids = WorkstationCache.findIdsByFilter(organization, filter_fn);
+			let result = {},
+				l = ids.length;
+			while (l--) {
+				result[ids[l]] = WorkstationCache.find(ids[l])
+					.serialize();
+			}
+			console.log("RESULTPROV", result);
+			return result;
+		} else
+			throw new Error("Should not get here")
+
+
+		// return this.actionGetWorkstationsCache({
+		// 		organization,
+		// 		device_type
+		// 	})
+		// 	.then((res) => {
+		// 		let active = {},
+		// 			l;
+		// 		_.map(res, (v) => {
+		// 			l = v.length;
+		// 			while (l--) {
+		// 				if (state === '*' || !!~state.indexOf(v[l].state)) {
+		// 					active[v[l].id] = v[l];
+		// 				}
+		// 			}
+		// 		});
+		// 		return active;
+		// 	});
 	}
 
 
+	//only for ticket-index
 	actionOccupationMap({
 		organization,
 		device_type
 	}) {
-		return this.actionGetWorkstationsCache({
-				organization,
-				device_type
-			})
+		return Promise.resolve(WorkstationCache.findByFilter(organization))
 			.then((res) => {
 				let occupation_map = {},
-					l;
-				_.map(res, (v) => {
-					l = v.length;
-					while (l--) {
-						if (v[l] && v[l].occupied_by.length > 0)
-							occupation_map[v[l].id] = v[l].occupied_by;
-					}
-				});
+					l = res.length;
+				while (l--) {
+					if (res[l] && res[l].get("occupied_by")
+						.length > 0)
+						occupation_map[res[l].id] = res[l].get("occupied_by");
+				}
 				return occupation_map;
 			});
+	}
+
+	_findSingleWorkstation(id) {
+		let ws = WorkstationCache.find(id);
+		return ws ? Promise.resolve(ws) : this.patchwerk.get("Workstation", {
+				key: id
+			})
+			.then(res => (res[0]));
+	}
+
+	_findWorkstations(ids) {
+		let ws = WorkstationCache.findAll(ids);
+		return _.every(ws, w => !!w) ? Promise.resolve(ws) : Promise.map(ids, id => this.patchwerk.get("Workstation", {
+			key: id
+		}));
 	}
 
 
@@ -347,25 +417,16 @@ class Workstation {
 	}) {
 		let ws;
 		console.log("WS OCC", workstation, user_id, user_type);
-		return this.iris.getEntryTypeless(workstation)
+		return this._findSingleWorkstation(workstation)
 			.then((res) => {
 				console.log("ws entry", res);
-				ws = res[workstation];
-				if (!ws)
+				ws = res;
+				if (!ws || !ws.get("attached_to"))
 					return Promise.reject(new Error("No such workstations."));
-				let occupation = ws.occupied_by || [];
-				occupation = _.castArray(occupation);
-				if (ws.device_type == 'control-panel') {
-					if (!_.isEmpty(occupation) && !~_.indexOf(occupation, user_id))
-						return Promise.reject(new Error(`Workstation ${workstation} is already occupied by agents ${occupation}.`));
-				}
-				ws.occupied_by = _.uniq(_.concat(occupation, user_id));
-				ws.state = 'active';
-				return this.iris.setEntryTypeless(ws);
+				ws.occupy(user_id);
+				return this.patchwerk.save(ws);
 			})
 			.then(res => {
-				console.log("ws set cache");
-
 				return this.emitter.addTask('agent', {
 					_action: 'login',
 					user_id,
@@ -397,32 +458,21 @@ class Workstation {
 	}) {
 		let to_logout_ws;
 		let org, user_id;
-		return this.emitter.addTask("workstation", {
-				_action: "by-id",
-				workstation: workstation
-			})
-			.then((res) => {
-				let ws = res[workstation];
+		return this._findSingleWorkstation(workstation)
+			.then((ws) => {
 				// console.log(ws);
-				user_id = ws.occupied_by[0];
-				let organization = ws.attached_to;
+				user_id = ws.get("occupied_by")[0];
+				let organization = ws.get("attached_to");
 
-				return Promise.props({
-					ws: this.emitter.addTask('workstation', {
-						_action: "by-agent",
-						user_id: user_id,
+				return this.emitter.addTask('workstation', {
+						_action: 'organization-data',
 						organization: organization
-					}),
-					org: this.emitter.addTask('workstation', {
-							_action: 'workstation-organization-data',
-							workstation: workstation
-						})
-						.then(res => res[workstation])
-				});
+					})
+					.then(res => res[organization]);
 			})
-			.then((res) => {
-				org = res.org;
-				to_logout_ws = res.ws['control-panel'];
+			.then((pre) => {
+				org = pre;
+				to_logout_ws = WorkstationCache.findByFilter(org.org_merged.id, (ws) => ws.occupiedBy(user_id));
 				return Promise.map(to_logout_ws, (ws) => {
 					return this.emitter.addTask('queue', {
 						_action: "clear-agent",
@@ -442,14 +492,9 @@ class Workstation {
 					});
 				});
 				// console.log("LEAVING II", to_logout_ws);
-				_.forEach(to_logout_ws, (ws, key) => {
-					let occupation = _.castArray(ws.occupied_by);
-					ws.occupied_by = _.uniq(_.filter(occupation, (usr) => usr && (usr !== user_id)));
-					if (_.isEmpty(ws.occupied_by))
-						ws.state = 'inactive';
-				});
+				_.forEach(to_logout_ws, (ws, key) => ws.deoccupy(user_id));
 				// console.log("LEAVING II", to_put);
-				return this.iris.setEntryTypeless(to_logout_ws);
+				return Promise.map(to_logout_ws, w => this.patchwerk.save(w));
 			})
 			.then((res) => {
 				this.emitter.emit("workstation.emit.change-state", {
@@ -472,22 +517,18 @@ class Workstation {
 		let fin;
 		let ws, orgs = {};
 		console.log("LEAVE", user_id, workstation);
-		return this.iris.getEntryTypeless(workstation)
+		return this._findWorkstations(workstation)
 			.then((res) => {
-				ws = _.values(res);
+				ws = res;
 				_.forEach(ws, (ws_data) => {
-					let occupation = _.castArray(ws_data.occupied_by);
-					ws_data.occupied_by = _.uniq(_.filter(occupation, (user) => user && (user !== user_id)));
-					if (_.isEmpty(ws.occupied_by))
-						ws_data.state = 'inactive';
-					orgs[ws_data.attached_to] = true;
+					ws_data.deoccupy(user_id);
+					orgs[ws_data.get("attached_to")] = true;
 				});
 				orgs = Object.keys(orgs);
-				return this.iris.setEntryTypeless(ws);
+				return Promise.map(ws, w => this.patchwerk.save(w));
 			})
 			.then((res) => {
 				console.log("LEAVE WS", res);
-				fin = _.mapValues(res, val => !!val.cas);
 
 				this.emitter.emit("workstation.emit.change-state", {
 					user_id,
@@ -495,21 +536,17 @@ class Workstation {
 					organization: orgs
 				});
 
-				return Promise.all(_.map(fin, (ws_res, ws_key) => {
-					if (!ws_res)
-						return {
-							success: ws_res
-						};
+				return Promise.map(res, (ws_obj) => {
 					return this.emitter.addTask('queue', {
 						_action: "clear-agent-queue",
 						operator: user_id,
-						workstation: ws_key
+						workstation: ws_obj.id
 					});
-				}));
+				});
 			})
 			.then(res => {
 				return this.actionByAgent({
-					user_id,
+					user_id: user_id,
 					organization: orgs
 				});
 			})
@@ -554,41 +591,35 @@ class Workstation {
 	}) {
 		console.log(workstation);
 		let fin, orgs = {};
-		return this.iris.getEntryTypeless(workstation)
+		return this._findWorkstations(workstation)
 			.then((res) => {
-				let workstations = _.values(res),
+				let workstations = res,
 					l = workstations.length,
 					ws = [];
 				while (l--) {
 					if (workstations[l]) {
-						workstations[l].state = state;
+						workstations[l].set("state", state);
 						ws.push(workstations[l]);
 						orgs[workstations[l].attached_to] = true;
 					}
 				}
 				orgs = Object.keys(orgs);
-				return this.iris.setEntryTypeless(ws);
+				return Promise.map(ws, w => this.patchwerk.save(w));
 			})
 			.then((res) => {
-				fin = _.mapValues(res, val => !!val.cas);
-
 				this.emitter.emit("workstation.emit.change-state", {
 					user_id,
 					workstation,
 					organization: orgs
 				});
 
-				return Promise.all(_.map(fin, (ws_res, ws_key) => {
-					if (!ws_res || state == 'active')
-						return {
-							success: ws_res
-						};
+				return Promise.map(res, (ws_obj) => {
 					return this.emitter.addTask('queue', {
 						_action: "clear-agent-queue",
 						operator: user_id,
-						workstation: ws_key
+						workstation: ws_obj.id
 					});
-				}));
+				});
 			})
 			.then((res) => {
 				// console.log("USER CHSTATE", user_id, res);
