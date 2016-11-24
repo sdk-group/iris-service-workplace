@@ -191,8 +191,13 @@ class Workstation {
 	}
 
 	_findWorkstationsOrSatellites(ids) {
-		return Promise.map(ids, id => (WorkstationCache.find(id) || this.iris.getEntryTypeless(id)
-			.then(res => res[id])));
+		return Promise.map(_.castArray(ids), id => {
+			let ws = WorkstationCache.find(id);
+			if (ws)
+				return ws.serialize();
+			return this.iris.getEntryTypeless(id)
+				.then(res => res[id]);
+		});
 	}
 
 	actionWorkstationOrganizationData({
@@ -200,7 +205,7 @@ class Workstation {
 		embed_schedules = false
 	}) {
 		let ws;
-		return this._findWorkstationsOrSatellites(_.castArray(workstation))
+		return this._findWorkstationsOrSatellites(workstation)
 			.then((res) => {
 				ws = res;
 				if (embed_schedules) {
@@ -405,7 +410,7 @@ class Workstation {
 	}
 
 	_findWorkstations(ids) {
-		return Promise.map(ids, id => {
+		return Promise.map(_.castArray(ids), id => {
 			return WorkstationCache.find(id) || this.patchwerk.get("Shapeshifter", {
 				key: id
 			});
