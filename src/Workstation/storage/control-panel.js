@@ -16,8 +16,8 @@ class ControlPanelCache extends BasicCache {
 	}
 
 	findIdsByFilter(section, filter_fn) {
-		let all = _.filter(Object.keys(this._keymap), k => this.find(k)
-			.get("attached_to") == section);
+		let all = _.filter(Object.keys(this._keymap), k => (this.find(k)
+			.get("attached_to") == section));
 		if (!filter_fn)
 			return all;
 		let l = all.length,
@@ -32,8 +32,8 @@ class ControlPanelCache extends BasicCache {
 	}
 
 	findByFilter(section, filter_fn) {
-		let all = _.filter(Object.keys(this._keymap), k => this.find(k)
-			.get("attached_to") == section);
+		let all = _.filter(Object.keys(this._keymap), k => (this.find(k)
+			.get("attached_to") == section));
 		if (!filter_fn)
 			return this.findAll(all);
 		let l = all.length,

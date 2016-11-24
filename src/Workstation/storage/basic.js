@@ -32,6 +32,9 @@ class BasicWorkstationCache {
 	}
 
 	find(id) {
+		if (!this._keymap[id]) {
+			return false;
+		}
 		return _.get(this._content, this._keymap[id]);
 	}
 

@@ -190,18 +190,23 @@ class Workstation {
 			});
 	}
 
+	_findWorkstationsOrSatellites(ids) {
+		return Promise.map(ids, id => (WorkstationCache.find(id) || this.iris.getEntryTypeless(id)
+			.then(res => res[id])));
+	}
+
 	actionWorkstationOrganizationData({
 		workstation,
 		embed_schedules = false
 	}) {
 		let ws;
-		return this._findWorkstations(_.castArray(workstation))
+		return this._findWorkstationsOrSatellites(_.castArray(workstation))
 			.then((res) => {
 				ws = res;
 				if (embed_schedules) {
-					return this.iris.getWorkstationOrganizationSchedulesChain(_.map(ws, w => w.get('attached_to')));
+					return this.iris.getWorkstationOrganizationSchedulesChain(_.map(ws, 'attached_to'));
 				} else {
-					return this.iris.getWorkstationOrganizationChain(_.map(ws, w => w.get('attached_to')));
+					return this.iris.getWorkstationOrganizationChain(_.map(ws, 'attached_to'));
 				}
 			})
 			.then((offices) => {
@@ -210,7 +215,7 @@ class Workstation {
 				// 		depth: null
 				// 	}));
 				return _.reduce(ws, (acc, ws_obj) => {
-					let org_chain = offices[ws_obj.get("attached_to")];
+					let org_chain = offices[ws_obj.attached_to];
 					let org_addr = [];
 					let org_merged = _.reduce(_.orderBy(_.keys(org_chain), _.parseInt, 'desc'), (acc, val) => {
 						acc = _.merge(acc, org_chain[val]);
@@ -219,7 +224,7 @@ class Workstation {
 					}, {});
 					org_addr = _.join(org_addr, ".");
 					acc[ws_obj.id] = {
-						ws: ws_obj.serialize(),
+						ws: ws_obj,
 						org_addr,
 						org_chain,
 						org_merged
@@ -338,17 +343,15 @@ class Workstation {
 		state = ['active'],
 		device_type
 	}) {
-		console.log("------------------------------------\n", device_type);
 		if (device_type == 'control-panel') {
-			let filter_fn = function (ws) {
+			let ids = WorkstationCache.findByFilter(organization, (ws) => {
 				return (state === '*' || !!~state.indexOf(ws.get("state")));
-			}
-			let ids = WorkstationCache.findIdsByFilter(organization, filter_fn);
+			});
 			let result = {},
 				l = ids.length;
 			while (l--) {
-				result[ids[l]] = WorkstationCache.find(ids[l])
-					.serialize();
+				console.log("PROV", ids[l]);
+				result[ids[l].id] = ids[l].serialize();
 			}
 			console.log("RESULTPROV", result);
 			return result;
@@ -396,17 +399,17 @@ class Workstation {
 
 	_findSingleWorkstation(id) {
 		let ws = WorkstationCache.find(id);
-		return ws ? Promise.resolve(ws) : this.patchwerk.get("Workstation", {
-				key: id
-			})
-			.then(res => (res[0]));
+		return ws ? Promise.resolve(ws) : this.patchwerk.get("Shapeshifter", {
+			key: id
+		});
 	}
 
 	_findWorkstations(ids) {
-		let ws = WorkstationCache.findAll(ids);
-		return _.every(ws, w => !!w) ? Promise.resolve(ws) : Promise.map(ids, id => this.patchwerk.get("Workstation", {
-			key: id
-		}));
+		return Promise.map(ids, id => {
+			return WorkstationCache.find(id) || this.patchwerk.get("Shapeshifter", {
+				key: id
+			});
+		});
 	}
 
 
@@ -424,9 +427,10 @@ class Workstation {
 				if (!ws || !ws.get("attached_to"))
 					return Promise.reject(new Error("No such workstations."));
 				ws.occupy(user_id);
-				return this.patchwerk.save(ws);
+				return this.patchwerk.save(ws, ws.creation_params);
 			})
 			.then(res => {
+				console.log("ws entry", res);
 				return this.emitter.addTask('agent', {
 					_action: 'login',
 					user_id,
@@ -442,10 +446,10 @@ class Workstation {
 				this.emitter.emit("workstation.emit.change-state", {
 					user_id,
 					workstation,
-					organization: ws.attached_to
+					organization: ws.get("attached_to")
 				});
 				return {
-					workstation: ws
+					workstation: ws.serialize()
 				};
 			});
 	}
@@ -494,7 +498,7 @@ class Workstation {
 				// console.log("LEAVING II", to_logout_ws);
 				_.forEach(to_logout_ws, (ws, key) => ws.deoccupy(user_id));
 				// console.log("LEAVING II", to_put);
-				return Promise.map(to_logout_ws, w => this.patchwerk.save(w));
+				return Promise.map(to_logout_ws, w => this.patchwerk.save(w, w.creation_params));
 			})
 			.then((res) => {
 				this.emitter.emit("workstation.emit.change-state", {
@@ -520,15 +524,17 @@ class Workstation {
 		return this._findWorkstations(workstation)
 			.then((res) => {
 				ws = res;
-				_.forEach(ws, (ws_data) => {
-					ws_data.deoccupy(user_id);
-					orgs[ws_data.get("attached_to")] = true;
-				});
+				let l = ws.length;
+				console.log("LEAVING", ws);
+				while (l--) {
+					ws[l].deoccupy(user_id);
+					orgs[ws[l].get("attached_to")] = true;
+				}
 				orgs = Object.keys(orgs);
-				return Promise.map(ws, w => this.patchwerk.save(w));
+				return Promise.map(ws, w => this.patchwerk.save(w, w.creation_params));
 			})
 			.then((res) => {
-				console.log("LEAVE WS", res);
+				console.log("LEFT WS", res);
 
 				this.emitter.emit("workstation.emit.change-state", {
 					user_id,
@@ -594,17 +600,13 @@ class Workstation {
 		return this._findWorkstations(workstation)
 			.then((res) => {
 				let workstations = res,
-					l = workstations.length,
-					ws = [];
+					l = workstations.length;
 				while (l--) {
-					if (workstations[l]) {
-						workstations[l].set("state", state);
-						ws.push(workstations[l]);
-						orgs[workstations[l].attached_to] = true;
-					}
+					workstations[l].set("state", state);
+					orgs[workstations[l].get("attached_to")] = true;
 				}
 				orgs = Object.keys(orgs);
-				return Promise.map(ws, w => this.patchwerk.save(w));
+				return Promise.map(workstations, w => this.patchwerk.save(w, w.creation_params));
 			})
 			.then((res) => {
 				this.emitter.emit("workstation.emit.change-state", {
