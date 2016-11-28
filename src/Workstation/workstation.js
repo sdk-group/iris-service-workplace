@@ -96,19 +96,7 @@ class Workstation {
 				});
 			})
 			.then((res) => {
-				return Promise.map(_.castArray(organization), (org) => {
-					return this.actionGetWorkstationsCache({
-						organization: org,
-						device_type: ['control-panel']
-					});
-				});
-			})
-			.then(res => {
-				to_logout_ws = _(res)
-					.flatMap('control-panel')
-					.compact()
-					.flatMap('id')
-					.value();
+				to_logout_ws = _.flatMap(_.castArray(organization), org => WorkstationCache.findIdsByFilter(org));
 
 				return Promise.map(to_logout_ws, workstation => this.actionClearOccupation({
 					workstation
@@ -129,9 +117,9 @@ class Workstation {
 					to_logout_ws
 				}, 'Logged out: ');
 				console.log("CLEAR LOGINS");
-				return this._fillControlPanelCache(org_keys);
 			})
 			.then(res => {
+				console.log(WorkstationCache);
 				return true;
 			});
 	}
@@ -139,15 +127,9 @@ class Workstation {
 	actionClearOccupation({
 		workstation
 	}) {
-		return this.iris.getEntryTypeless(workstation)
-			.then((res) => {
-				let ws = _.map(_.filter(res, r => !_.isEmpty(r.occupied_by)), w => {
-					w.occupied_by = [];
-					w.state = 'inactive';
-					return w;
-				});
-				return this.iris.setEntryTypeless(ws);
-			});
+		let ws = WorkstationCache.find(workstation);
+		ws.clear();
+		return this.patchwerk.save(ws, ws.creation_params);
 	}
 
 	actionById({
