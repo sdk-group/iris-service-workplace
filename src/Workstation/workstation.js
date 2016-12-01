@@ -139,7 +139,7 @@ class Workstation {
 	}
 
 	_fillControlPanelCache(org_keys) {
-		console.log(org_keys);
+		// console.log(org_keys);
 		WorkstationCache.flush();
 		return Promise.map(org_keys, org => this.patchwerk.get("Workstation", {
 				department: org,
@@ -291,13 +291,12 @@ class Workstation {
 		state = ['active'],
 		device_type
 	}) {
+
 		if (device_type == 'control-panel') {
-			let filter_fn = function (ws) {
-				return (state === '*' || !!~state.indexOf(ws.get("state")));
-			}
+
 			return {
 				all: WorkstationCache.findIdsByFilter(organization),
-				active: WorkstationCache.findIdsByFilter(organization, filter_fn)
+				active: WorkstationCache.findIdsByFilter(organization, (ws) => (state === '*' || !!~state.indexOf(ws.get("state"))))
 			}
 		} else
 			throw new Error("Should not get here")
@@ -337,13 +336,12 @@ class Workstation {
 			let result = {},
 				l = ids.length;
 			while (l--) {
-				console.log("PROV", ids[l]);
+				// console.log("PROV", ids[l]);
 				result[ids[l].id] = ids[l].serialize();
 			}
-			console.log("RESULTPROV", result);
+			// console.log("RESULTPROV", result);
 			return result;
-		} else
-			throw new Error("Should not get here")
+		}
 
 
 		// return this.actionGetWorkstationsCache({
@@ -409,7 +407,7 @@ class Workstation {
 		console.log("WS OCC", workstation, user_id, user_type);
 		return this._findSingleWorkstation(workstation)
 			.then((res) => {
-				console.log("ws entry", res);
+				// console.log("ws entry", res);
 				ws = res;
 				if (!ws || !ws.get("attached_to"))
 					return Promise.reject(new Error("No such workstations."));
@@ -417,7 +415,7 @@ class Workstation {
 				return this.patchwerk.save(ws, ws.creation_params);
 			})
 			.then(res => {
-				console.log("ws entry", res);
+				// console.log("ws entry", res);
 				return this.emitter.addTask('agent', {
 					_action: 'login',
 					user_id,
@@ -426,7 +424,7 @@ class Workstation {
 				});
 			})
 			.then((res) => {
-				console.log("ws login");
+				// console.log("ws login");
 
 				if (!res.success)
 					return Promise.reject(new Error("Failed to login user."));
@@ -475,7 +473,7 @@ class Workstation {
 				});
 			})
 			.then(res => {
-				console.log("afterclear", res);
+				// console.log("afterclear", res);
 				_.forEach(to_logout_ws, (ws) => {
 					let to_join = ['command.logout', org.org_addr, ws.id];
 					this.emitter.emit('broadcast', {
@@ -512,7 +510,7 @@ class Workstation {
 			.then((res) => {
 				ws = res;
 				let l = ws.length;
-				console.log("LEAVING", ws);
+				// console.log("LEAVING", ws);
 				while (l--) {
 					ws[l].deoccupy(user_id);
 					orgs[ws[l].get("attached_to")] = true;
@@ -521,7 +519,7 @@ class Workstation {
 				return Promise.map(ws, w => this.patchwerk.save(w, w.creation_params));
 			})
 			.then((res) => {
-				console.log("LEFT WS", res);
+				// console.log("LEFT WS", res);
 
 				this.emitter.emit("workstation.emit.change-state", {
 					user_id,
@@ -582,7 +580,7 @@ class Workstation {
 		workstation,
 		state
 	}) {
-		console.log(workstation);
+		// console.log(workstation);
 		let fin, orgs = {};
 		return this._findWorkstations(workstation)
 			.then((res) => {
