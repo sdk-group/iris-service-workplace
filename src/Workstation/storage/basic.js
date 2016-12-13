@@ -8,6 +8,7 @@ class BasicWorkstationCache {
 		this._content = {};
 		this._updates = {};
 		this._keymap = {};
+		this._ready = false;
 	}
 
 	addSection(name, data) {
@@ -55,6 +56,14 @@ class BasicWorkstationCache {
 			return;
 		this._content[section].push(entity);
 		this._keymap[entity.id] = `${section}.${this._content[section].length-1}`;
+	}
+
+	setReady(val) {
+		this._ready = !!val;
+	}
+
+	isReady() {
+		return this._ready;
 	}
 }
 

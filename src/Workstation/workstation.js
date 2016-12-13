@@ -5,6 +5,7 @@ let WorkstationApi = require('resource-management-framework')
 	.WorkstationApi;
 let Patchwerk = require("patchwerk");
 let WorkstationCache = require("./storage/control-panel.js");
+let OrgDataCache = require("./storage/office-data.js");
 
 class Workstation {
 	constructor() {
@@ -24,6 +25,10 @@ class Workstation {
 
 				this.emitter.on('engine.ready', () => {
 					return this._fillControlPanelCache(org_keys);
+				});
+
+				this.emitter.on('engine.ready', () => {
+					return this._fillOrgDataCache(org_keys);
 				});
 
 				return this.actionScheduleLogoutAll({
@@ -110,6 +115,12 @@ class Workstation {
 					});
 				});
 
+				this.emitter.emit("workstation.emit.change-state", {
+					workstation: _.map(to_logout_ws, 'id'),
+					organization: organization
+				});
+				this._notifySupplies(WorkstationCache.findAll(to_logout_ws));
+
 				global.logger && logger.info({
 					module: 'workstation',
 					method: 'logout-all',
@@ -117,9 +128,8 @@ class Workstation {
 					to_logout_ws
 				}, 'Logged out: ');
 				console.log("CLEAR LOGINS");
-			})
-			.then(res => {
-				console.log(WorkstationCache);
+
+				// console.log(WorkstationCache);
 				return true;
 			});
 	}
@@ -182,74 +192,104 @@ class Workstation {
 		});
 	}
 
+	_fillOrgDataCache(org_keys) {
+		return this.iris.getWorkstationOrganizationSchedulesChain(org_keys)
+			.then((office_chains) => {
+				for (var oname in office_chains) {
+					let odata = this._organizationData(office_chains[oname]);
+					OrgDataCache.addSection(oname, odata);
+				}
+				OrgDataCache.setReady(true);
+				// console.log(require("util")
+				// 	.inspect(OrgDataCache, {
+				// 		depth: null
+				// 	}));
+				return true;
+			});
+	}
+
+
 	actionWorkstationOrganizationData({
-		workstation,
-		embed_schedules = false
+		workstation
 	}) {
 		let ws;
 		return this._findWorkstationsOrSatellites(workstation)
 			.then((res) => {
 				ws = res;
-				if (embed_schedules) {
-					return this.iris.getWorkstationOrganizationSchedulesChain(_.map(ws, 'attached_to'));
-				} else {
-					return this.iris.getWorkstationOrganizationChain(_.map(ws, 'attached_to'));
-				}
-			})
-			.then((offices) => {
-				// console.log("WS OFFC", workstation, require('util')
-				// 	.inspect(offices, {
-				// 		depth: null
-				// 	}));
-				return _.reduce(ws, (acc, ws_obj) => {
-					let org_chain = offices[ws_obj.attached_to];
-					let org_addr = [];
-					let org_merged = _.reduce(_.orderBy(_.keys(org_chain), _.parseInt, 'desc'), (acc, val) => {
-						acc = _.merge(acc, org_chain[val]);
-						org_addr.push(org_chain[val].id);
+				if (OrgDataCache.isReady()) {
+					return _.reduce(ws, (acc, ws_obj) => {
+						let odata = OrgDataCache.find(ws_obj.attached_to);
+						acc[ws_obj.id] = {
+							ws: ws_obj,
+							org_addr: odata.org_addr,
+							org_chain: odata.org_chain,
+							org_merged: odata.org_merged
+						};
 						return acc;
 					}, {});
-					org_addr = _.join(org_addr, ".");
-					acc[ws_obj.id] = {
-						ws: ws_obj,
-						org_addr,
-						org_chain,
-						org_merged
-					};
-					return acc;
-				}, {});
-				// console.log("WS RESULT", require('util')
-				// 	.inspect(result, {
-				// 		depth: null
-				// 	}));
+				}
+
+				return this.iris.getWorkstationOrganizationSchedulesChain(_.map(ws, 'attached_to'))
+					.then((offices) => {
+						// console.log("WS OFFC", workstation, require('util')
+						// 	.inspect(offices, {
+						// 		depth: null
+						// 	}));
+						return _.reduce(ws, (acc, ws_obj) => {
+							let org_chain = offices[ws_obj.attached_to];
+							let org_data = this._organizationData(org_chain);
+							acc[ws_obj.id] = {
+								ws: ws_obj,
+								org_addr: org_data.org_addr,
+								org_chain: org_data.org_chain,
+								org_merged: org_data.org_merged
+							};
+							return acc;
+						}, {});
+						// console.log("WS RESULT", require('util')
+						// 	.inspect(result, {
+						// 		depth: null
+						// 	}));
+					});
 			});
+
 	}
 
 	actionOrganizationTimezones() {
 		return this.iris.getOrganizationTimezones();
 	}
 
+	_organizationData(org_chain) {
+		let org_addr = [];
+		let org_merged = _.reduce(_.orderBy(Object.keys(org_chain), parseInt, 'desc'), (acc, val) => {
+			acc = _.merge(acc, org_chain[val]);
+			org_addr.push(org_chain[val].id);
+			return acc;
+		}, {});
+		org_addr = _.join(org_addr, ".");
+		return {
+			org_addr,
+			org_chain,
+			org_merged
+		};
+	}
+
 	actionOrganizationData({
-		organization,
-		embed_schedules = false
+		organization
 	}) {
-		return (embed_schedules ? this.iris.getWorkstationOrganizationSchedulesChain(organization) : this.iris.getWorkstationOrganizationChain(organization))
-			.then(res => {
-				return _.mapValues(res, (org_chain) => {
-					let org_addr = [];
-					let org_merged = _.reduce(_.orderBy(_.keys(org_chain), _.parseInt, 'desc'), (acc, val) => {
-						acc = _.merge(acc, org_chain[val]);
-						org_addr.push(org_chain[val].id);
-						return acc;
-					}, {});
-					org_addr = _.join(org_addr, ".");
-					return {
-						org_addr,
-						org_chain,
-						org_merged
-					};
-				});
-			});
+		if (OrgDataCache.isReady()) {
+			return Promise.resolve(_.reduce(_.castArray(organization), (acc, org) => {
+				let odata = OrgDataCache.find(org);
+				acc[org] = {
+					org_addr: odata.org_addr,
+					org_chain: odata.org_chain,
+					org_merged: odata.org_merged
+				};
+				return acc;
+			}, {}));
+		}
+		return this.iris.getWorkstationOrganizationSchedulesChain(organization)
+			.then(res => _.mapValues(res, this._organizationData));
 	}
 
 	actionWorkstation({
@@ -299,29 +339,7 @@ class Workstation {
 				active: WorkstationCache.findIdsByFilter(organization, (ws) => (state === '*' || !!~state.indexOf(ws.get("state"))))
 			}
 		} else
-			throw new Error("Should not get here")
-
-
-		// return this.actionGetWorkstationsCache({
-		// 		organization,
-		// 		device_type
-		// 	})
-		// 	.then((res) => {
-		// 		let active = [];
-		// 		let all = _.flatMap(res, (v, dt) => {
-		// 			return _.map(v, (vv) => {
-		// 				if (state === '*' || !!~state.indexOf(vv.state)) {
-		// 					active.push(vv.id);
-		// 				}
-		// 				return vv.id;
-		// 			});
-		// 		});
-		// 		// console.log(all, active);
-		// 		return {
-		// 			all: all,
-		// 			active: active
-		// 		};
-		// 	});
+			throw new Error("Should not get here");
 	}
 
 	actionProviders({
@@ -342,25 +360,6 @@ class Workstation {
 			// console.log("RESULTPROV", result);
 			return result;
 		}
-
-
-		// return this.actionGetWorkstationsCache({
-		// 		organization,
-		// 		device_type
-		// 	})
-		// 	.then((res) => {
-		// 		let active = {},
-		// 			l;
-		// 		_.map(res, (v) => {
-		// 			l = v.length;
-		// 			while (l--) {
-		// 				if (state === '*' || !!~state.indexOf(v[l].state)) {
-		// 					active[v[l].id] = v[l];
-		// 				}
-		// 			}
-		// 		});
-		// 		return active;
-		// 	});
 	}
 
 
@@ -433,6 +432,8 @@ class Workstation {
 					workstation,
 					organization: ws.get("attached_to")
 				});
+				this._notifySupplies(ws);
+
 				return {
 					workstation: ws.serialize()
 				};
@@ -491,6 +492,7 @@ class Workstation {
 					workstation,
 					organization: org.org_merged.id
 				});
+				this._notifySupplies(to_logout_ws);
 				return this.emitter.addTask('agent', {
 					_action: 'logout',
 					user_id
@@ -526,6 +528,8 @@ class Workstation {
 					workstation,
 					organization: orgs
 				});
+
+				this._notifySupplies(ws);
 
 				return Promise.map(res, (ws_obj) => {
 					return this.emitter.addTask('queue', {
@@ -574,6 +578,24 @@ class Workstation {
 			});
 	}
 
+	_notifySupplies(data) {
+		let ws = _.castArray(data);
+		if (OrgDataCache.isReady()) {
+			let l = ws.length;
+			// console.log("LEAVING", ws);
+			while (l--) {
+				let org = OrgDataCache.find(ws[l].get("attached_to"));
+				if (ws[l].get("device_type") != "control-panel")
+					continue;
+				this.emitter.command('digital-display.emit.command', {
+					org_addr: org.org_addr,
+					org_merged: org.org_merged,
+					workstation: ws[l].id,
+					command: 'refresh'
+				});
+			}
+		}
+	}
 
 	actionChangeState({
 		user_id,
@@ -581,11 +603,12 @@ class Workstation {
 		state
 	}) {
 		// console.log(workstation);
-		let fin, orgs = {};
+		let fin, orgs = {},
+			workstations;
 		return this._findWorkstations(workstation)
 			.then((res) => {
-				let workstations = res,
-					l = workstations.length;
+				workstations = res;
+				let l = workstations.length;
 				while (l--) {
 					workstations[l].set("state", state);
 					orgs[workstations[l].get("attached_to")] = true;
@@ -599,6 +622,8 @@ class Workstation {
 					workstation,
 					organization: orgs
 				});
+
+				this._notifySupplies(workstations);
 
 				return Promise.map(res, (ws_obj) => {
 					return this.emitter.addTask('queue', {
