@@ -25,7 +25,7 @@ class OfficeDataCache extends BasicCache {
 		return result;
 	}
 
-	findByFilter(section, filter_fn) {
+	findByFilter(filter_fn) {
 		let all = Object.keys(this._keymap);
 
 		if (!filter_fn)
@@ -53,7 +53,9 @@ class OfficeDataCache extends BasicCache {
 	}
 
 	findAll(ids) {
-		return _.reduce(ids, (acc, id) => {
+		if (!ids)
+			ids = this.findSectionByFilter();
+		return _.reduce(_.castArray(ids), (acc, id) => {
 			acc[id] = this.find(id);
 			return acc;
 		}, {});

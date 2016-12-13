@@ -278,8 +278,9 @@ class Workstation {
 		organization
 	}) {
 		if (OrgDataCache.isReady()) {
-			return Promise.resolve(_.reduce(_.castArray(organization), (acc, org) => {
-				let odata = OrgDataCache.find(org);
+			let orgs = OrgDataCache.findAll(organization);
+			// console.log("ODATA", organization, orgs);
+			return Promise.resolve(_.reduce(orgs, (acc, odata, org) => {
 				acc[org] = {
 					org_addr: odata.org_addr,
 					org_chain: odata.org_chain,
@@ -591,7 +592,7 @@ class Workstation {
 					org_addr: org.org_addr,
 					org_merged: org.org_merged,
 					workstation: ws[l].id,
-					command: 'refresh'
+					command: ws[l].is("active") ? 'refresh' : 'clear'
 				});
 			}
 		}
