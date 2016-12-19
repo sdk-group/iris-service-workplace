@@ -208,6 +208,38 @@ class Workstation {
 			});
 	}
 
+	actionApiWorkstationOrganizationData({
+		workstation
+	}) {
+		let ws;
+		return this._findWorkstationsOrSatellites(workstation)
+			.then((res) => {
+				ws = res;
+				return this.iris.getWorkstationOrganizationChain(_.map(ws, 'attached_to'))
+					.then((offices) => {
+						// console.log("WS OFFC", workstation, require('util')
+						// 	.inspect(offices, {
+						// 		depth: null
+						// 	}));
+						return _.reduce(ws, (acc, ws_obj) => {
+							let org_chain = offices[ws_obj.attached_to];
+							let org_data = this._organizationData(org_chain);
+							acc[ws_obj.id] = {
+								ws: ws_obj,
+								org_addr: org_data.org_addr,
+								org_chain: org_data.org_chain,
+								org_merged: org_data.org_merged
+							};
+							return acc;
+						}, {});
+						// console.log("WS RESULT", require('util')
+						// 	.inspect(result, {
+						// 		depth: null
+						// 	}));
+					});
+			});
+
+	}
 
 	actionWorkstationOrganizationData({
 		workstation
