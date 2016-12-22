@@ -94,7 +94,7 @@ class Workstation {
 		org_addr
 	}) {
 		let to_logout_ws;
-		return Promise.map(_.castArray(organization), (org) => {
+		return Promise.mapSeries(_.castArray(organization), (org) => {
 				return this.emitter.addTask('agent', {
 					_action: 'logout-all',
 					organization: org
@@ -103,7 +103,7 @@ class Workstation {
 			.then((res) => {
 				to_logout_ws = _.flatMap(_.castArray(organization), org => WorkstationCache.findIdsByFilter(org));
 
-				return Promise.map(to_logout_ws, workstation => this.actionClearOccupation({
+				return Promise.mapSeries(to_logout_ws, workstation => this.actionClearOccupation({
 					workstation
 				}));
 			})
@@ -183,7 +183,7 @@ class Workstation {
 	}
 
 	_findWorkstationsOrSatellites(ids) {
-		return Promise.map(_.castArray(ids), id => {
+		return Promise.mapSeries(_.castArray(ids), id => {
 			let ws = WorkstationCache.find(id);
 			if (ws)
 				return ws.serialize();
@@ -422,7 +422,7 @@ class Workstation {
 	}
 
 	_findWorkstations(ids) {
-		return Promise.map(_.castArray(ids), id => {
+		return Promise.mapSeries(_.castArray(ids), id => {
 			return WorkstationCache.find(id) || this.patchwerk.get("Shapeshifter", {
 				key: id
 			});
@@ -496,7 +496,7 @@ class Workstation {
 			.then((pre) => {
 				org = pre;
 				to_logout_ws = WorkstationCache.findByFilter(org.org_merged.id, (ws) => ws.occupiedBy(user_id));
-				return Promise.map(to_logout_ws, (ws) => {
+				return Promise.mapSeries(to_logout_ws, (ws) => {
 					return this.emitter.addTask('queue', {
 						_action: "clear-agent",
 						administrator_id: administrator,
@@ -517,7 +517,7 @@ class Workstation {
 				// console.log("LEAVING II", to_logout_ws);
 				_.forEach(to_logout_ws, (ws, key) => ws.deoccupy(user_id));
 				// console.log("LEAVING II", to_put);
-				return Promise.map(to_logout_ws, w => this.patchwerk.save(w, w.creation_params));
+				return Promise.mapSeries(to_logout_ws, w => this.patchwerk.save(w, w.creation_params));
 			})
 			.then((res) => {
 				this.emitter.emit("workstation.emit.change-state", {
@@ -551,7 +551,7 @@ class Workstation {
 					orgs[ws[l].get("attached_to")] = true;
 				}
 				orgs = Object.keys(orgs);
-				return Promise.map(ws, w => this.patchwerk.save(w, w.creation_params));
+				return Promise.mapSeries(ws, w => this.patchwerk.save(w, w.creation_params));
 			})
 			.then((res) => {
 				// console.log("LEFT WS", res);
@@ -564,7 +564,7 @@ class Workstation {
 
 				this._notifySupplies(ws);
 
-				return Promise.map(res, (ws_obj) => {
+				return Promise.mapSeries(res, (ws_obj) => {
 					return this.emitter.addTask('queue', {
 						_action: "clear-agent-queue",
 						operator: user_id,
@@ -647,7 +647,7 @@ class Workstation {
 					orgs[workstations[l].get("attached_to")] = true;
 				}
 				orgs = Object.keys(orgs);
-				return Promise.map(workstations, w => this.patchwerk.save(w, w.creation_params));
+				return Promise.mapSeries(workstations, w => this.patchwerk.save(w, w.creation_params));
 			})
 			.then((res) => {
 				this.emitter.emit("workstation.emit.change-state", {
@@ -658,7 +658,7 @@ class Workstation {
 
 				this._notifySupplies(workstations);
 
-				return Promise.map(res, (ws_obj) => {
+				return Promise.mapSeries(res, (ws_obj) => {
 					return this.emitter.addTask('queue', {
 						_action: "clear-agent-queue",
 						operator: user_id,
