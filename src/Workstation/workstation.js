@@ -19,6 +19,26 @@ class Workstation {
 		this.patchwerk = Patchwerk(this.emitter);
 	}
 	launch() {
+		this.emitter.on("workstation.emit.change-state", ({
+			workstation,
+			workstation_data,
+			organization
+		}) => {
+			// console.log(workstation_data);
+			let ws = _.castArray(workstation_data),
+				l = ws.length;
+			while (l--) {
+				let odata = OrgDataCache.find(ws[l].attached_to);
+				// console.log("---------------->EMIT WS", 'workstation.change-state.' + odata.org_addr, ws[l].state, ws[l].id);
+				this.emitter.emit('broadcast', {
+					event: 'workstation.change-state.' + odata.org_addr,
+					data: ws[l]
+				});
+			}
+
+		});
+
+
 		return this.iris.getOrganizationTree()
 			.then((res) => {
 				let org_keys = _.map(res, '@id');
@@ -115,8 +135,10 @@ class Workstation {
 					});
 				});
 
+				// console.log("########", to_logout_ws);
 				this.emitter.emit("workstation.emit.change-state", {
-					workstation: _.map(to_logout_ws, 'id'),
+					workstation: to_logout_ws,
+					workstation_data: WorkstationCache.findAll(to_logout_ws),
 					organization: organization
 				});
 				this._notifySupplies(WorkstationCache.findAll(to_logout_ws));
@@ -462,7 +484,8 @@ class Workstation {
 					return Promise.reject(new Error("Failed to login user."));
 				this.emitter.emit("workstation.emit.change-state", {
 					user_id,
-					workstation,
+					workstation: workstation,
+					workstation_data: ws,
 					organization: ws.get("attached_to")
 				});
 				this._notifySupplies(ws);
@@ -522,7 +545,8 @@ class Workstation {
 			.then((res) => {
 				this.emitter.emit("workstation.emit.change-state", {
 					user_id,
-					workstation,
+					workstation: workstation,
+					workstation_data: to_logout_ws,
 					organization: org.org_merged.id
 				});
 				this._notifySupplies(to_logout_ws);
@@ -558,7 +582,8 @@ class Workstation {
 
 				this.emitter.emit("workstation.emit.change-state", {
 					user_id,
-					workstation,
+					workstation: workstation,
+					workstation_data: ws,
 					organization: orgs
 				});
 
@@ -652,7 +677,8 @@ class Workstation {
 			.then((res) => {
 				this.emitter.emit("workstation.emit.change-state", {
 					user_id,
-					workstation,
+					workstation: workstation,
+					workstation_data: workstations,
 					organization: orgs
 				});
 
